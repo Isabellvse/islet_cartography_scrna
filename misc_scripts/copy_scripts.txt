@@ -1,0 +1,2 @@
+# copyting scripts
+cp -r /work/Package /work/islet_cartography_scrna/data_download_scripts

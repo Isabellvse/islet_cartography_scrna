@@ -1,0 +1,9 @@
+# Internalize the shell
+eval "$(conda shell.bash hook)"
+
+# clone conda enviroment
+conda create --prefix /work/islet_cartography_scrna/scrna_cartography --clone /work/JM
+
+# save list of package in conda enviroment
+cd practical_info
+conda list --prefix /work/islet_cartography_scrna/scrna_cartography --export > conda_list.txt
