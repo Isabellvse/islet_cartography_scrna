@@ -48,7 +48,7 @@ for z in $Donors; do
     R1=$(ls *_2.fastq | tr ' ' ',')
     R2=$(ls *_3.fastq | tr ' ' ',')
 
-    STAR --genomeDir "$Genome" --readFilesIn $R2 $R1 --soloType CB_UMI_Simple --soloFeatures Gene GeneFull Velocyto \
+    STAR --genomeDir "$Genome" --readFilesIn $R2 $R1 --soloType CB_UMI_Simple --soloFeatures Gene GeneFull \
         --soloCellFilter None --soloCBmatchWLtype 1MM_multi_Nbase_pseudocounts --clipAdapterType CellRanger4 \
         --outFilterScoreMin 30 --soloMultiMappers EM --soloUMIfiltering MultiGeneUMI_CR --soloUMIdedup 1MM_CR \
         --runThreadN 20 --outMultimapperOrder Random --outSAMmultNmax 1 --soloCBwhitelist "$whitelist" \
@@ -60,75 +60,5 @@ for z in $Donors; do
     mv Solo.out "$donor_out_dir/"
     mv Log* "$donor_out_dir/"
     rm Aligned.out.sam SJ.out.tab
-
-    # Alignment quality check
-    echo "===============================================" >> "$result_file"
-    echo "STAR results for $z" >> "$result_file"
-    echo "===============================================" >> "$result_file"
-
-    failed_samples=false
-
-    # Process barcode stats 
-    barcode_stats="$donor_out_dir/Solo.out/Barcodes.stats"
-    if [[ -f $barcode_stats ]]; then
-        # Extract barcode stats (nExactMatch and sum of other values)
-        valid_barcode_stats=$(awk '
-            BEGIN {nExactMatch = 0; sum_others = 0}
-            $1 == "nExactMatch" {nExactMatch = $2}
-            $1 != "nExactMatch" {sum_others += $2}
-            END {
-                if (sum_others == 0) {print 0}
-                else {print nExactMatch / sum_others}
-            }' "$barcode_stats")
-
-        # Check if valid barcode stats pass (must be greater than 1)
-        valid_barcode_stats_passed=$(echo "$valid_barcode_stats > 1" | bc)
-        if [[ $valid_barcode_stats_passed -eq 1 ]]; then
-            echo "Barcodes stats passed with nExactMatch / sum_others: $valid_barcode_stats" >> "$result_file"
-        else
-            echo "Invalid barcode stats: nExactMatch / sum_others: $valid_barcode_stats" >> "$result_file"
-            failed_samples=true
-        fi
-    else
-        echo "$z: Barcodes.stats not found!" >> "$result_file"
-        failed_samples=true
-    fi
-
-    # Loop through each folder for STAR results
-    for folder in "${folders[@]}"; do
-        folder_path="$donor_out_dir/Solo.out/$folder"
-        summary_file="$folder_path/Summary.csv"
-
-        # Check if the summary.csv exists and process barcode stats
-        if [[ -f $summary_file ]]; then
-            # Extract barcode stats
-            valid_barcodes=$(awk -F',' '/Reads With Valid Barcodes/ {print $2}' "$summary_file")
-            mapped_to_genome=$(awk -F',' '$1 == "Reads Mapped to Genome: Unique" {print $2}' "$summary_file")
-
-            # Check if values pass conditions (using bc for floating point comparison)
-            valid_barcodes_passed=$(echo "$valid_barcodes >= 0.8" | bc)
-            mapped_to_genome_passed=$(echo "$mapped_to_genome >= 0.8" | bc)
-
-            if [[ $valid_barcodes_passed -eq 1 && $mapped_to_genome_passed -eq 1 ]]; then
-                echo "$folder passed with Reads With Valid Barcodes: $valid_barcodes and Reads Mapped to Genome: $mapped_to_genome" >> "$result_file"
-            else
-                echo "$folder failed. Reads With Valid Barcodes: $valid_barcodes, Reads Mapped to Genome: $mapped_to_genome" >> "$result_file"
-                failed_samples=true
-            fi
-        else
-            echo "$folder: summary.csv not found!" >> "$result_file"
-            failed_samples=true
-        fi
-    done
-
-    # Cleanup: Only remove .fastq files if no folder failed
-    if [ "$failed_samples" = false ]; then
-        echo "No failures detected, proceeding with cleanup..."
-        rm *.fastq
-    else
-        echo "Samples failed, skipping removal of .fastq files"
-    fi
-
-    # Final cleanup for this donor
-    rm Donor Download *.sra
+    rm *.fastq
 done
