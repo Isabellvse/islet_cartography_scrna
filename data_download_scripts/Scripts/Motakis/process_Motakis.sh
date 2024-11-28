@@ -15,9 +15,6 @@ Donors=$(cut -f 1 "$Study" | sort | uniq)
 Genome="/work/islet_cartography_scrna/data_download_scripts/hg38/"
 whitelist="/work/islet_cartography_scrna/whitelist/3M-february-2018.txt"
 
-# list for summary of results
-result_file="$Out/star_results.txt"
-
 # Define folders for the STAR result check
 folders=("Gene" "GeneFull" "Velocyto")
 
@@ -55,10 +52,14 @@ for z in $Donors; do
         --soloBarcodeReadLength 0
 
     # Cleanup: Move results to donor-specific folder
-    donor_out_dir="$Out/$z"
-    mkdir -p "$donor_out_dir"
-    mv Solo.out "$donor_out_dir/"
-    mv Log* "$donor_out_dir/"
-    rm Aligned.out.sam SJ.out.tab
-    rm *.fastq
+    rm failed.downloads
+	mkdir $Out/$z/
+	mv Solo.out $Out/$z/
+	rm Aligned.out.sam
+	mv Log* $Out/$z/
+	rm SJ.out.tab
+	rm *.fastq
+	rm Donor
+	rm Download
+	rm *.sra
 done
