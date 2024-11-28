@@ -19,7 +19,7 @@ mkdir -p "$out"
 tmp="${data}/tmp"
 mkdir -p "$tmp"
 
-donors=$(awk '{print $1}' Gurp.wget | sort | uniq)
+donors=$(awk '{print $1}' "$study" | sort | uniq)
 
 for z in $donors; do
     # Create CSV file for features and add prefix gene
