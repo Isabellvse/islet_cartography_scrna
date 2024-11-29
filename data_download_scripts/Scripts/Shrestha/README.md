@@ -14,7 +14,7 @@
 
 ### Dataset at a glance
 
-- `n samples`: 3 ND donors, with multiple runs
+- `n samples`: 4 ND donors, with multiple runs
 - `method`: Single-Cell RNA-seq, 10x Genomics Single Cell 3' v2
 - `Library layout`: Paired
 
