@@ -23,7 +23,6 @@
 - `--soloType CB_UMI_Simple:` Sets the type of single-cell RNA-seq data, (a.k.a. Droplet) one UMI and one Cell Barcode of fixed length in read2, e.g. Drop-seq and 10X Chromium.
 - `--soloFeatures Gene GeneFull:` Specifies the features to be counted, including genes (reads match the gene transcript) and genefull (count all reads overlapping genes' exons and introns).
 - `--soloCellFilter None:` Disables cell filtering, meaning all barcodes will be considered.
-- `--soloUMIlen 12:` Sets the length of the UMI to 12 bases.
 - `--soloCBmatchWLtype 1MM_multi_Nbase_pseudocounts:` Multiple matches in whitelist with 1 mismatched base or N mismatched bases allowed, posterior probability calculation is used choose one of the matches. Allowed cell barcodes have to have at least one read with exact match. 
 - `--clipAdapterType CellRanger4:` Uses the adapter clipping method similar to Cell Ranger version 4. 5' TSO (template switch oligo) adapter and 3' polyA-tail clipping of the reads to better match CellRanger 
 - `--outFilterScoreMin 30:` Sets the minimum score for filtering out low-quality reads.
