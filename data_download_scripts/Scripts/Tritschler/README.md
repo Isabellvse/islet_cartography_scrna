@@ -4,13 +4,15 @@
 - `PMID`: 36113773
 - `Tissue`: Isolated islets
 
-
+### Preprocessing scripts
+- `process_Tritschler.sh`: Download and align data with STARsolo
+- `alignment_qc_Tritschler.sh`: Combine all alignment qaulity control parameters for all samples in a table
 ### Dataset at a glance
 
 - `n samples`: 5 Non diabetic
 - `method`: Single-Cell RNA-seq, 10x Genomics Single Cell 3' v2
 
-### Alignment paramters
+### STARsolo Alignment paramters
 
 - `--soloType CB_UMI_Simple:` Sets the type of single-cell RNA-seq data, in this case, a simple cell barcode (CB) and unique molecular identifier (UMI) setup.
 - `--soloFeatures Gene GeneFull:` Specifies the features to be counted, including genes and full gene bodies.
