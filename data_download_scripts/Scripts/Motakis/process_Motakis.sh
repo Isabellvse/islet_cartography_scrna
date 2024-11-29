@@ -15,9 +15,6 @@ Donors=$(cut -f 1 "$Study" | sort | uniq)
 Genome="/work/islet_cartography_scrna/data_download_scripts/hg38/"
 whitelist="/work/islet_cartography_scrna/whitelist/3M-february-2018.txt"
 
-# Define folders for the STAR result check
-folders=("Gene" "GeneFull" "Velocyto")
-
 # Loop over donors
 for z in $Donors; do
     # Setup the files needed to be downloaded for each donor
@@ -46,9 +43,9 @@ for z in $Donors; do
     R2=$(ls *_3.fastq | tr ' ' ',')
 
     STAR --genomeDir "$Genome" --readFilesIn $R2 $R1 --soloType CB_UMI_Simple --soloFeatures Gene GeneFull \
-        --soloCellFilter None --soloCBmatchWLtype 1MM_multi_Nbase_pseudocounts --clipAdapterType CellRanger4 \
+        --soloCellFilter None --soloUMIlen 12 --soloCBmatchWLtype 1MM_multi_Nbase_pseudocounts --clipAdapterType CellRanger4 \
         --outFilterScoreMin 30 --soloMultiMappers EM --soloUMIfiltering MultiGeneUMI_CR --soloUMIdedup 1MM_CR \
-        --runThreadN 20 --outMultimapperOrder Random --outSAMmultNmax 1 --soloCBwhitelist "$whitelist" \
+        --runThreadN 60 --outMultimapperOrder Random --outSAMmultNmax 1 --soloCBwhitelist "$whitelist" \
         --soloBarcodeReadLength 0
 
     # Cleanup: Move results to donor-specific folder
