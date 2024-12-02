@@ -1,10 +1,15 @@
-# Conda environment
+#!/bin/bash
+
+# Internalize shell
 eval "$(conda shell.bash hook)"
-conda activate /work/57814/conda/JM
+
+# Activate conda environment
+conda activate /work/islet_cartography_scrna/scrna_cartography
 
 # Define variables
-Genome="/work/57814/Annotation/Processing/Package/hg38/"
-Out="/work/57814/Data/Patchseq/Camunas/Preprocessed/"
+study_name="Camunas"
+Genome="/work/islet_cartography_scrna/data_download_scripts/hg38/"
+Out="/work/scRNAseq/${study_name}/Preprocessed"
 Study="Camunas.wget"
 
 # Download data
