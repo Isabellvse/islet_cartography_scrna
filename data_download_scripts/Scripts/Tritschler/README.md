@@ -1,8 +1,11 @@
 ## Tritschler
 
 - `GEO`: GSE198623
+- `BioProject`: PRJNA816172
 - `PMID`: 36113773
+- `DOI`: https://doi.org/10.1016/j.molmet.2022.101595
 - `Tissue`: Isolated islets
+- `Year`: 2022
 
 ### Preprocessing scripts
 - `process_Tritschler.sh`: Download and align data with STARsolo
@@ -11,6 +14,7 @@
 
 - `n samples`: 5 Non diabetic
 - `method`: Single-Cell RNA-seq, 10x Genomics Single Cell 3' v2
+- `Library layout`: Paired
 
 ### STARsolo Alignment paramters
 
@@ -19,7 +23,7 @@
 - `--soloCellFilter None:` Disables cell filtering, meaning all barcodes will be considered.
 - `--soloUMIlen 10:` Sets the length of the UMI to 10 bases.
 - `--soloCBmatchWLtype 1MM_multi_Nbase_pseudocounts:` Multiple matches in whitelist with 1 mismatched base or N mismatched bases allowed, posterior probability calculation is used choose one of the matches. Allowed cell barcodes have to have at least one read with exact match. 
-- `--clipAdapterType CellRanger4:` Uses the adapter clipping method similar to Cell Ranger version 4.
+- `--clipAdapterType CellRanger4:` Uses the adapter clipping method similar to Cell Ranger version 4. 5' TSO (template switch oligo) adapter and 3' polyA-tail clipping of the reads to better match CellRanger 
 - `--outFilterScoreMin 30:` Sets the minimum score for filtering out low-quality reads.
 - `--soloMultiMappers EM:` Uses the Maximum Likelihood Estimation for handling multi-mapping reads.
 - `--soloUMIfiltering MultiGeneUMI_CR:` Filters UMIs: basic + remove lower-count UMIs that map to more than one gene
