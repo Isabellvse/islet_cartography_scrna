@@ -9,7 +9,6 @@ mkdir $Out
 awk '{ print $3"\n out="$2"\n checksum=md5="$4 }' $Study > Download
 
 # Download using aria2
-# Download using aria2
 aria2c -iDownload -j10 --check-integrity true --save-session failed.downloads
 has_error=`wc -l < failed.downloads`
 while [ $has_error -gt 0 ]
