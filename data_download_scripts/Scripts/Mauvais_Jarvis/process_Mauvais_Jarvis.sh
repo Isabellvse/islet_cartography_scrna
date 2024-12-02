@@ -8,9 +8,9 @@ conda activate /work/islet_cartography_scrna/scrna_cartography
 
 # Load study and necessary paths
 study_name="Mauvais_Jarvis"
-Study="${study_name}.wget"
+Study="${study_name}_2.wget"
 Out="/work/scRNAseq/${study_name}/Preprocessed"
-mkdir -p "$Out"
+#mkdir -p "$Out"
 Donors=$(cut -f 1 "$Study" | sort | uniq)
 Genome="/work/islet_cartography_scrna/data_download_scripts/hg38/"
 whitelist="/work/islet_cartography_scrna/whitelist/3M-february-2018.txt"
@@ -49,11 +49,12 @@ for z in $Donors; do
         --soloBarcodeReadLength 0
 
     # Cleanup: Move results to donor-specific folder
-    rm failed.downloads
+   rm failed.downloads
 	mkdir $Out/$z/
 	mv Solo.out $Out/$z/
-	rm Aligned.out.sam
 	mv Log* $Out/$z/
+    
+    rm Aligned.out.sam
 	rm SJ.out.tab
 	rm *.fastq
 	rm Donor
