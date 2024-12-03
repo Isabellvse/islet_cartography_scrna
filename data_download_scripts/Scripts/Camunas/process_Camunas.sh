@@ -40,9 +40,9 @@ for z in $Donors; do
     STAR --genomeDir $Genome --soloType SmartSeq --readFilesManifest ./manifest --soloUMIdedup Exact --soloStrand Unstranded --soloFeatures Gene GeneFull --outFilterScoreMin 30 --soloMultiMappers EM --soloCellFilter None --runThreadN 20 --outMultimapperOrder Random --outSAMmultNmax 1 --readFilesCommand zcat
 
 # Cleanup
-mv Solo.out $Out
-mv Log* $Out
-mv failed.downloads $Out
+mkdir $Out/$z/
+mv Solo.out $Out/$z/
+mv Log* $Out/$z/
 
 rm Aligned.out.sam
 rm SJ.out.tab
