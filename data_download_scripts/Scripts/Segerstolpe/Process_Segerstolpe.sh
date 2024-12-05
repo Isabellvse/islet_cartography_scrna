@@ -6,7 +6,7 @@ Out="/work/57814/Data/scRNAseq/Segerstolpe"
 mkdir -p $Out
 
 # Download all files
-cut -f 4 $Study | xargs -n 1 -P 8 wget -q
+cut -f 2 $Study | xargs -n 1 -P 8 wget -q
 
 # Create a manifest file
 awk '{ print substr($4, 58, 60)"\t-\t"$2 }' Segerstolpe.wget > manifest
