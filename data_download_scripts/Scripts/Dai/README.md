@@ -16,22 +16,33 @@
 
 - `n samples`:  640 pancreatic cells from Non diabetic and type 2 diabetic individuals
 - `method`: Patch-seq data, aligned with Smart-seq2
-- `Library layout`: Paired
+- `Library layout`: paired-end reads (100 bp)
 
 ### STARsolo Alignment paramters
 
-- `--soloType CB_UMI_Simple:` Sets the type of single-cell RNA-seq data, (a.k.a. Droplet) one UMI and one Cell Barcode of fixed length in read2, e.g. Drop-seq and 10X Chromium.
-- `--soloCBstart 1:` Cell barcode start base at position 1
-- `--soloCBlen 12:` Cell barcode length is 12 bases
-- `--soloUMIstart 13:` UMI start base is base 13
-- `--soloUMIlen 8:` UMI length is 8 bases
-- `--soloBarcodeReadLength 0:` Do not check length of the barcode read
-- `--soloCellFilter None:` Disables cell filtering, meaning all barcodes will be considered.
-- `--soloUMIfiltering MultiGeneUMI_CR:` Filters UMIs: basic + remove lower-count UMIs that map to more than one gene
-- `--soloFeatures Gene GeneFull Velocyto:` Specifies the features to be counted, including genes (reads match the gene transcript) and genefull (count all reads overlapping genes' exons and introns).
-- `--outMultimapperOrder Random:` n outputs multiple alignments for each read in random order, and also also randomizes the choice of the primary alignment from the highest scoring alignments.
-- `--outSAMmultNmax 1:` Limits the number of alignments per read in the output SAM file to 1. Will output exactly one SAM line for each mapped read
-- `--soloCBwhitelist none:` no whitelist
-- `--outFilterScoreMin 30:` Sets the minimum score for filtering out low-quality reads.
-- `--soloMultiMappers EM:` Uses the Maximum Likelihood Estimation for handling multi-mapping reads.
-- `--soloUMIdedup 1MM_CR:` CellRanger2-4 algorithm for 1MM UMI collapsing.
+- `--soloType SmartSeq`: option produces cell/gene (and other features) count matrices, using rules similar to the droplet-based technologies. The differnces are (i) individual cells correspond to different FASTQ files,there are no Cell Barcode sequences, and "Cell IDs" have to be provided as input (ii) there are no UMI sequences, but reads can be deduplicated if they have identical start/end coordinates.
+- `--readFilesManifest ./manifest`: A file manifest with a list of FASTQ fiels and cell ids
+- `--soloUMIdedup Exact`: only exactly matching UMIs are collapsed
+- `--soloStrand Unstranded`: only exactly matching UMIs are collapsed
+- `--soloFeatures Gene GeneFull`: Specifies the features to be counted, including genes (reads match the gene transcript) and genefull (count all reads overlapping genes' exons and introns).
+- `--outFilterScoreMin 30`: Sets the minimum score for filtering out low-quality reads.
+- `--soloMultiMappers EM`: Uses the Maximum Likelihood Estimation for handling multi-mapping reads.
+- `--soloCellFilter None`: do not output filtered cells
+- `--outMultimapperOrder Random`: n outputs multiple alignments for each read in random order, and also also randomizes the choice of the primary alignment from the highest scoring alignments.
+- `--outSAMmultNmax 1`: Limits the number of alignments per read in the output SAM file to 1. Will output exactly one SAM line for each mapped read
+
+#### Example of fastq file:
+
+Read 1:
+
+@SRR13439816.1 1/1
+GTACATGGGAAGCAGTGGTATCAACGCAGAGTACATGGGAAGCAGTGGTATCAACGCAGAGTACATGGGAAGCAGTGGTATCAACGCAGAGTACATGGGA
++
+FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:FFFFFFFFFFFFF::FFFFFF:FFFFFFFFFFFFFFFFFFFFFFFFF:FFFFFFFFFF:
+
+Read 2: 
+
+@SRR13439816.1 1/2
+GCTTCCCATGTACTCTGCGTTGATACCACTGCTTCCCATGTACTCTGCGTTGATACCACTGCTTCCCATGTACTCTGCGTTGATACCACTGCTTCCCATG
++
+FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:F:FF:FFFFFFFFFFF:FFFFFFFFF:F,,,:FF:FFFFFFFFFFF,FFFFF:FF

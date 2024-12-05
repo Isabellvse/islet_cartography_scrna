@@ -16,7 +16,7 @@
 
 - `n samples`:  6 Non diabetic,  4 type 2 diabetic
 - `method`: Plate based, Smart-seq2
-- `Library layout`: Paired
+- `Library layout`: 43 bp single-end reads
 
 ### STARsolo Alignment paramters
 
@@ -30,3 +30,9 @@
 - `--soloCellFilter None`: do not output filtered cells
 - `--outMultimapperOrder Random`: n outputs multiple alignments for each read in random order, and also also randomizes the choice of the primary alignment from the highest scoring alignments.
 - `--outSAMmultNmax 1`: Limits the number of alignments per read in the output SAM file to 1. Will output exactly one SAM line for each mapped read
+
+#### Example of fastq file:
+@ERR1630013.1 Run0246_AC48UDACXX_L3_R1_T1101_C9136/1
+CATCTCCGAGCCCACGAGACTAAGGCGAAACTCCGATGGCCGC
++
+@CCFFFFDAFDFHGIABGFIEIJGIIGBF(.*8)-'(''.)''

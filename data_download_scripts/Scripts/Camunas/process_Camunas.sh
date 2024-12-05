@@ -13,42 +13,40 @@ Out="/work/scRNAseq/${study_name}/Preprocessed"
 mkdir -p "$Out"
 Genome="/work/islet_cartography_scrna/data_download_scripts/hg38/"
 
-Donors=$(cut -f 1 "$Study" | sort | uniq)
+# Process data
+awk '{  print $3"\n out="$2"\n checksum=md5="$4 }' $Study > Download
 
-for z in $Donors; do
-    # Setup the files needed to be downloaded for each donor
-    awk -v VAR=$z '$1 == VAR { print $0 }' "$Study" > Donor
-    awk '{  print $4"\n out="$3"\n checksum=md5="$5 }' Donor > Download
+# Download using aria2
+aria2c -i Download -j10 --check-integrity true --save-session failed.downloads
+has_error=`wc -l < failed.downloads`
+while [ $has_error -gt 0 ]
+do
+echo "still has $has_error errors, rerun aria2 to download ..."
+mv failed.downloads Download
+aria2c -iDownload -j10 --check-integrity true -c --save-session failed.downloads
+has_error=`wc -l < out.txt`
+sleep 10
+done
 
-     # Download using aria2
-    aria2c -i Download -j10 --check-integrity=true --save-session failed.downloads
-    has_error=$(wc -l < failed.downloads)
-    
-   # while [ $has_error -gt 0 ]; do
-        echo "Still has $has_error errors, rerun aria2 to download ..."
-        mv failed.downloads Download
-        aria2c -i Download -j10 --check-integrity=true -c --save-session failed.downloads
-        has_error=$(wc -l < failed.downloads)
-        sleep 10
-   # done
+# Create the manifest file
+VAR=$(ls *.gz)
+for i in $VAR; do echo $i | sed "s/_R1.fq.gz//g" - | sed "s/_R2.fq.gz//g" >> Cells; done
+cat Cells | sort | uniq -c | awk '$1 == "2" { print $2 }' - > ValidCells
+rm Cells
+VAR=$(cat ValidCells)
+for i in $VAR; do echo -e $i"_R1.fq.gz\t"$i"_R2.fq.gz\t"$i >> manifest; done
+rm ValidCells
 
-    # Create a manifest file
-    VAR=$(ls *.fq.gz)
-    for i in $VAR; do cell=$(echo $i | sed 's/.fq.gz//g'); echo -e $i"\t-\t"$cell >> manifest; done
-
-    # run STAR 
-    STAR --genomeDir $Genome --soloType SmartSeq --readFilesManifest ./manifest --soloUMIdedup Exact --soloStrand Unstranded --soloFeatures Gene GeneFull --outFilterScoreMin 30 --soloMultiMappers EM --soloCellFilter None --runThreadN 20 --outMultimapperOrder Random --outSAMmultNmax 1 --readFilesCommand zcat
+# Run STAR
+STAR --genomeDir $Genome --soloType SmartSeq --readFilesManifest ./manifest --soloUMIdedup Exact --soloStrand Unstranded --soloFeatures Gene GeneFull --outFilterScoreMin 30 --soloMultiMappers EM --soloCellFilter None --runThreadN 50 --outMultimapperOrder Random --outSAMmultNmax 1 --readFilesCommand zcat
 
 # Cleanup
-mkdir $Out/$z/
-mv Solo.out $Out/$z/
-mv Log* $Out/$z/
-
+mv Solo.out $Out
 rm Aligned.out.sam
+mv Log* $Out
 rm SJ.out.tab
 rm *.fq.gz*
 rm Donor
 rm Download
 rm manifest
-
-done 
+mv failed.downloads $Out
