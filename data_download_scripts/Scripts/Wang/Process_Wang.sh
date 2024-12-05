@@ -1,9 +1,17 @@
-# Load information about the number of samples in the study
-Study="Wang.wget"
-Donors=$(cut -f 1 $Study | sort | uniq)
-Genome="/data/home/jgsm/Pancreas/hg38/"
-Out="/data/home/jgsm/VDS2/Mandrup/JM/Pancreas/Data/scRNAseq/Wang/"
-mkdir $Out
+#!/bin/bash
+
+# Internalize shell
+eval "$(conda shell.bash hook)"
+
+# Activate conda environment
+conda activate /work/islet_cartography_scrna/scrna_cartography
+
+# Load study and necessary paths
+study_name="Wang"
+Study="${study_name}.wget"
+Out="/work/scRNAseq/${study_name}/Preprocessed"
+mkdir -p "$Out"
+Genome="/work/islet_cartography_scrna/data_download_scripts/hg38/"
 
 # Setup the files needed to be downloaded
 awk '{ print $3"\n out="$2"\n checksum=md5="$4 }' $Study > Download
@@ -32,7 +40,7 @@ VAR=$(ls *.fq.gz)
 for i in $VAR; do cell=$(echo $i | sed 's/.fq.gz//g'); echo -e $i"\t-\t"$cell >> manifest; done
 
 # Run STAR
-STAR --genomeDir $Genome --soloType SmartSeq --readFilesManifest ./manifest --soloUMIdedup Exact --soloStrand Unstranded --soloFeatures Gene GeneFull --outFilterScoreMin 30 --soloMultiMappers EM --soloCellFilter None --runThreadN 20 --outMultimapperOrder Random --outSAMmultNmax 1 --readFilesCommand zcat
+STAR --genomeDir $Genome --soloType SmartSeq --readFilesManifest ./manifest --soloUMIdedup Exact --soloStrand Unstranded --soloFeatures Gene GeneFull --outFilterScoreMin 30 --soloMultiMappers EM --soloCellFilter None --runThreadN 60 --outMultimapperOrder Random --outSAMmultNmax 1 --readFilesCommand zcat
 
 # Cleanup
 mv Solo.out $Out
