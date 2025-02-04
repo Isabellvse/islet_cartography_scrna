@@ -1,19 +1,35 @@
-# Conda environment
+#!/bin/bash
+
+# Redirect output and error to a log file
+exec > >(tee -i /work/islet_cartography_scrna/data_download_scripts/Scripts/Wang_Sander/output.log)
+exec 2>&1
+
+cd /work/islet_cartography_scrna/data_download_scripts/Scripts/Wang_Sander/
+
+# Internalize shell
 eval "$(conda shell.bash hook)"
-conda activate /work/57814/conda/JM
 
-# Define variables
-folders=$(ls -d SRR18593*)
+# Activate conda environment
+conda activate /work/islet_cartography_scrna/scrna_cartography
 
+# Load study and necessary paths
 study_name="Wang_Sander"
 Study="${study_name}.wget"
 Out="/work/scRNAseq/${study_name}/Preprocessed"
+
 mkdir -p "$Out"
 Donors=$(cut -f 1 "$Study" | sort | uniq)
 Genome="/work/islet_cartography_scrna/data_download_scripts/hg38/"
-whitelist="/work/islet_cartography_scrna/whitelist/737K-arc-v1.txt.txt"
+whitelist="/work/islet_cartography_scrna/whitelist/737K-arc-v1.txt"
 
+# Load STAR genome into memory
+STAR --genomeDir "$Genome" --genomeLoad LoadAndExit
+rm Log* Aligned.out.sam SJ.out.tab
+
+# Loop over donors
 for z in $Donors; do
+    echo "Processing donor: $z"
+
     # Setup the files needed to be downloaded for each donor
     awk -v VAR=$z '$1 == VAR { print $0 }' "$Study" > Donor
     awk '{ print $3"\n out="$2"\n checksum=md5="$4 }' Donor > Download
@@ -30,22 +46,15 @@ for z in $Donors; do
         sleep 10
     done
 
-    # Run STAR 
-            STAR --genomeDir $Genome --readFilesIn $i/*R2*.fastq.gz $i/*R1*.fastq.gz --soloType  \
-            CB_UMI_Simple --soloFeatures Gene GeneFull Velocyto --soloCellFilter None --soloCBmatchWLtype \
-            1MM_multi_Nbase_pseudocounts --clipAdapterType CellRanger4 --outFilterScoreMin 30 --soloMultiMappers EM \
-            --soloUMIfiltering MultiGeneUMI_CR --soloUMIdedup 1MM_CR --runThreadN 60 --outMultimapperOrder Random \
-            --outSAMmultNmax 1 --readFilesCommand zcat --soloCBwhitelist $whitelist --soloBarcodeReadLength 0 --soloUMIlen 12
+    # Run STAR
+    STAR --genomeLoad LoadAndKeep --genomeDir "$Genome" --readFilesIn *R2.fq.gz *R1.fq.gz --soloType CB_UMI_Simple --soloFeatures Gene GeneFull --soloCellFilter None --soloCBmatchWLtype 1MM_multi_Nbase_pseudocounts --clipAdapterType CellRanger4 --outFilterScoreMin 30 --soloMultiMappers EM --soloUMIfiltering MultiGeneUMI_CR --soloUMIdedup 1MM_CR --runThreadN 60 --outMultimapperOrder Random --outSAMmultNmax 1 --soloCBwhitelist "$whitelist" --soloBarcodeReadLength 0 --soloUMIlen 12 --readFilesCommand zcat
 
     # Cleanup: Move results to donor-specific folder
-    rm failed.downloads
-	mkdir $Out/$z/
-	mv Solo.out $Out/$z/
-	rm Aligned.out.sam
-	mv Log* $Out/$z/
-	rm SJ.out.tab
-	rm *.fastq
-	rm Donor
-	rm Download
-	rm *.sra
+    mkdir -p "$Out/$z/"
+    mv failed.downloads Solo.out Log* "$Out/$z/"
+    rm Aligned.out.sam SJ.out.tab *.fq.gz Donor Download 
 done
+
+# Unload the genome from shared memory
+STAR --genomeDir "$Genome" --genomeLoad Remove
+rm Log* Aligned.out.sam SJ.out.tab

@@ -24,7 +24,7 @@ for z in $Donors; do
 	done
 
 	# Run STAR
-	STAR --genomeDir /data/home/jgsm/Pancreas/hg38/ --readFilesIn *R2.fq.gz *R1.fq.gz --soloType CB_UMI_Simple --soloCBwhitelist Muraro.whitelist --soloCBstart 1 --soloCBlen 8 --soloUMIstart 9 --soloUMIlen 4 --soloBarcodeReadLength 0 --soloCellFilter None --soloUMIfiltering MultiGeneUMI_CR --runThreadN 20 --outMultimapperOrder Random --outSAMmultNmax 1 --soloUMIdedup 1MM_CR --soloFeatures Gene GeneFull Velocyto --outFilterScoreMin 30 --soloMultiMappers EM --soloCBmatchWLtype 1MM --readFilesCommand zcat
+	STAR --genomeDir /data/home/jgsm/Pancreas/hg38/ --readFilesIn *R2.fq.gz *R1.fq.gz --soloType CB_UMI_Simple --soloCBwhitelist Muraro.whitelist --soloCBstart 1 --soloCBlen 8 --soloUMIstart 9 --soloUMIlen 4 --soloBarcodeReadLength 0 --soloCellFilter None --soloUMIfiltering MultiGeneUMI_CR --runThreadN 20 --outMultimapperOrder Random --outSAMmultNmax 1 --soloUMIdedup 1MM_CR --soloFeatures Gene GeneFull --outFilterScoreMin 30 --soloMultiMappers EM --soloCBmatchWLtype 1MM --readFilesCommand zcat
 
 	# Cleanup
 	mkdir /data/home/jgsm/VDS2/Mandrup/JM/Pancreas/Data/scRNAseq/Muraro/$z/
