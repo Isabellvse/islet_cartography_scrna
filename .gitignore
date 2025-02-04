@@ -1,3 +1,4 @@
+*.ipynb_checkpoints*
 data_download_scripts/hg38
 data_download_scripts/gencode.v35.annotation.gtf
 data_download_scripts/.CondaScript.sh.swp
