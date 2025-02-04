@@ -1,3 +1,7 @@
+data_download_scripts/Scripts/Gurp/Gurp.whitelist
+whitelist/*
+*alignment_terminal_*.txt
+*output.log
 *.ipynb_checkpoints*
 data_download_scripts/hg38
 data_download_scripts/gencode.v35.annotation.gtf
