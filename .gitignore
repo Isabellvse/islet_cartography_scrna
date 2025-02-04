@@ -1,5 +1,8 @@
 data_download_scripts/Scripts/Gurp/Gurp.whitelist
 whitelist/*
+whitelist/3M-5pgex-jan-2023.txt
+data_download_scripts/Scripts/Gurp/Gurp.whitelist
+whitelist/3M-3pgex-may-2023.txt
 *alignment_terminal_*.txt
 *output.log
 *.ipynb_checkpoints*
