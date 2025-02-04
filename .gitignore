@@ -6,24 +6,16 @@ data_download_scripts/CondaScript.sh
 data_download_scripts/Scripts/Avrahami/.Process_Avrahami.sh.swp
 data_download_scripts/Scripts/Avrahami/.Process_Avrahami_SRA.sh.swo
 data_download_scripts/Scripts/Avrahami/.Process_Avrahami_SRA.sh.swp
-data_download_scripts/Scripts/Avrahami/Avrahami.wget
 data_download_scripts/Scripts/Baron/.Process_Baron.sh.swo
 data_download_scripts/Scripts/Baron/.Process_Baron.sh.swp
-data_download_scripts/Scripts/Baron/Baron.wget
 data_download_scripts/Scripts/Baron/bc1.txt
 data_download_scripts/Scripts/Baron/bc2.txt
-data_download_scripts/Scripts/Camunas/Camunas.wget
-data_download_scripts/Scripts/Dai/Dai.wget
 data_download_scripts/Scripts/Enge/.Enge.wget.swp
 data_download_scripts/Scripts/Enge/.Process_Enge.sh.swp
 data_download_scripts/Scripts/Enge/.Process_Enge_SRA.sh.swo
 data_download_scripts/Scripts/Enge/.Process_Enge_SRA.sh.swp
 data_download_scripts/Scripts/Enge/Download
-data_download_scripts/Scripts/Enge/Enge.wget
-data_download_scripts/Scripts/Fang/Fang.wget
 data_download_scripts/Scripts/Gurp/Aligned.out.sam
-        data_download_scripts/Scripts/Gurp/Gurp.wget
-        data_download_scripts/Scripts/Gurp/Gurp.whitelist
         data_download_scripts/Scripts/Gurp/Log.out
         data_download_scripts/Scripts/Gurp/Log.progress.out
         data_download_scripts/Scripts/HPAP/.ProcessHPAP_scRNAseq.sh.swo
@@ -43,18 +35,13 @@ data_download_scripts/Scripts/Gurp/Aligned.out.sam
         data_download_scripts/Scripts/HPAP_JM
         data_download_scripts/Scripts/HPAP_JM.pub
         data_download_scripts/Scripts/HPAP_PatchSeq/PatchSeq.samples
-        data_download_scripts/Scripts/Lawlor/Lawlor.wget
         data_download_scripts/Scripts/Muraro/.Process_Muraro_SRA.sh.swp
         data_download_scripts/Scripts/Muraro/Muraro.txt
-        data_download_scripts/Scripts/Muraro/Muraro.wget
-        data_download_scripts/Scripts/Muraro/Muraro.whitelist
+       data_download_scripts/Scripts/Muraro/Muraro.whitelist
         data_download_scripts/Scripts/Muraro/SRAdownload
         data_download_scripts/Scripts/Muraro/sratoolkit.3.0.2-ubuntu64/
         data_download_scripts/Scripts/Segerstolpe/.Process_Segerstolpe.sh.swo
-        data_download_scripts/Scripts/Segerstolpe/Segerstolpe.wget
-        data_download_scripts/Scripts/Shrestha/Shrestha.wget
         data_download_scripts/Scripts/Shrestha/Shrestha.whitelist_v2
-        data_download_scripts/Scripts/Wang/Wang.wget
         data_download_scripts/Scripts/Wang_Sander/737K-arc-v1.txt
         data_download_scripts/Scripts/Wang_Sander/SRR18593339/
         data_download_scripts/Scripts/Wang_Sander/SRR18593340/
@@ -76,9 +63,7 @@ data_download_scripts/Scripts/Gurp/Aligned.out.sam
         data_download_scripts/Scripts/Wang_Sander/SRR18593404/
         data_download_scripts/Scripts/Wang_Sander/SRR18593405/
         data_download_scripts/Scripts/Wang_Sander/SRR18593406/
-        data_download_scripts/Scripts/Xin/Xin.wget
         data_download_scripts/Scripts/Xin_Diabetes/Xin.whitelist
-        data_download_scripts/Scripts/Xin_Diabetes/Xin_Diabetes.wget
         data_download_scripts/gencode.v35.annotation.gtf
         data_download_scripts/hg38/
         data_download_scripts/typescript
