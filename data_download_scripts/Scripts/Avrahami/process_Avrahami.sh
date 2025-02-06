@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Redirect output and error to a log file
-exec > >(tee -i /work/islet_cartography_scrna/data_download_scripts/Scripts/Avrahami/output.log)
+exec > >(tee -i /work/islet_cartography_scrna/data_download_scripts/Scripts/Avrahami/output_2.log)
 exec 2>&1
 
 cd /work/islet_cartography_scrna/data_download_scripts/Scripts/Avrahami/
@@ -48,10 +48,10 @@ for z in $cells; do
 
     # Cat the individual data files with multiple runs and remove the individual files
 	cat *.gz > "run.fq.gz"
-
+    
     VAR=$(ls *_*.gz)
-    for i in $VAR; do echo $i | sed "s/_1.fq.gz//g" - | sed "s/_2.fq.gz//g" >> Cells; done
-    cat Cells | sort | uniq -c | awk '$1 == "2" { print $2 }' - > ValidCells
+    for i in $VAR; do echo $i | sed "s/_1.fq.gz//g" - | sed "s/_2.fq.gz//g" |sed "s/_3.fq.gz//g"  >> Cells; done
+    cat Cells | sort | uniq -c | awk '{ print $2 }' > ValidCells
     rm Cells
     VAR=$(cat ValidCells)
     for i in $VAR; do echo -e "run.fq.gz\t-\t$i" > manifest; done
