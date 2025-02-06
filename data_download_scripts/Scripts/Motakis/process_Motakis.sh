@@ -14,7 +14,7 @@ conda activate /work/islet_cartography_scrna/scrna_cartography
 
 # Load study and necessary paths
 study_name="Motakis"
-Study="${study_name}_2.wget"
+Study="${study_name}.wget"
 Out="/work/scRNAseq/${study_name}/Preprocessed"
 
 mkdir -p "$Out"
