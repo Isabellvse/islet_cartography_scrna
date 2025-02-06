@@ -1,5 +1,11 @@
 #!/bin/bash
 
+# Redirect output and error to a log file
+exec > >(tee -i /work/islet_cartography_scrna/data_download_scripts/Scripts/Motakis/output.log)
+exec 2>&1
+
+cd /work/islet_cartography_scrna/data_download_scripts/Scripts/Motakis/
+
 # Internalize shell
 eval "$(conda shell.bash hook)"
 
@@ -11,7 +17,7 @@ study_name="Motakis"
 Study="${study_name}_2.wget"
 Out="/work/scRNAseq/${study_name}/Preprocessed"
 
-#mkdir -p "$Out"
+mkdir -p "$Out"
 Donors=$(cut -f 1 "$Study" | sort | uniq)
 Genome="/work/islet_cartography_scrna/data_download_scripts/hg38/"
 whitelist_v2="/work/islet_cartography_scrna/whitelist/737K-august-2016.txt"
@@ -47,7 +53,8 @@ for z in $Donors; do
     done
 
     # Extract donor and chemistry 
-    Chemistry=$(awk -v VAR=$z '$1 == VAR { print $5 }' $Study)
+    Chem=$(awk -v VAR=$z '$1 == VAR { print $5 }' $Study) 
+    Chemistry=$(echo "$Chem" | sort | uniq -c | awk '{ print $2 }')
 
     # Run STAR
     cat *_2.fastq* > R1.fq
@@ -58,13 +65,13 @@ for z in $Donors; do
         STAR --genomeLoad LoadAndKeep --genomeDir "$Genome" --readFilesIn R2.fq R1.fq --soloType CB_UMI_Simple --soloFeatures Gene GeneFull \
             --soloCellFilter None --soloCBmatchWLtype 1MM_multi_Nbase_pseudocounts --clipAdapterType CellRanger4 \
             --outFilterScoreMin 30 --soloMultiMappers EM --soloUMIfiltering MultiGeneUMI_CR --soloUMIdedup 1MM_CR \
-            --runThreadN 30 --outMultimapperOrder Random --outSAMmultNmax 1 --soloCBwhitelist "$whitelist_v2" \
+            --runThreadN 60 --outMultimapperOrder Random --outSAMmultNmax 1 --soloCBwhitelist "$whitelist_v2" \
             --soloBarcodeReadLength 0 --soloUMIlen 10
     else
         STAR --genomeLoad LoadAndKeep --genomeDir "$Genome" --readFilesIn R2.fq R1.fq --soloType CB_UMI_Simple --soloFeatures Gene GeneFull \
             --soloCellFilter None --soloCBmatchWLtype 1MM_multi_Nbase_pseudocounts --clipAdapterType CellRanger4 \
             --outFilterScoreMin 30 --soloMultiMappers EM --soloUMIfiltering MultiGeneUMI_CR --soloUMIdedup 1MM_CR \
-            --runThreadN 30 --outMultimapperOrder Random --outSAMmultNmax 1 --soloCBwhitelist "$whitelist_v3" \
+            --runThreadN 60 --outMultimapperOrder Random --outSAMmultNmax 1 --soloCBwhitelist "$whitelist_v3" \
             --soloBarcodeReadLength 0 --soloUMIlen 12
     fi
 
