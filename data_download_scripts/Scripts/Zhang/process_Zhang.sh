@@ -1,27 +1,33 @@
 #!/bin/bash
-####################### Change this!!!
+
 # Internalize shell
 eval "$(conda shell.bash hook)"
 
 # Activate conda environment
 conda activate /work/islet_cartography_scrna/scrna_cartography
 
-# Load study and necessary paths
+# Define variables
 study_name="Zhang"
 Study="${study_name}.wget"
 Out="/work/scRNAseq/${study_name}/Preprocessed"
 mkdir -p "$Out"
-Donors=$(cut -f 1 "$Study" | sort | uniq)
 Genome="/work/islet_cartography_scrna/data_download_scripts/hg38/"
 
-# loop over donors
+Donors=$(cut -f 1 "$Study" | sort | uniq)
+
+# Load STAR genome into memory
+STAR --genomeDir "$Genome" --genomeLoad LoadAndExit
+rm Log* Aligned.out.sam SJ.out.tab
+
+
+# Loop over donors
 for z in $Donors; do
 	# Setup the files needed to be downloaded
 	awk -v VAR=$z '$1 == VAR { print $0 }' $Study > Donor
 	awk '{ print $3"\n out="$2"\n checksum=md5="$4 }' Donor > Download
 
-        # Download using aria2
-        aria2c -iDownload -j10 --check-integrity true --save-session failed.downloads
+	# Download using aria2
+	aria2c -iDownload -j10 --check-integrity true --save-session failed.downloads
         has_error=`wc -l < failed.downloads`
         while [ $has_error -gt 0 ]
         do
@@ -31,20 +37,19 @@ for z in $Donors; do
                 has_error=`wc -l < out.txt`
                 sleep 10
         done
+		
+   
+    # Run STAR
+    STAR --genomeLoad LoadAndKeep --genomeDir $Genome --readFilesIn *R2.fq.gz *R1.fq.gz --soloType CB_UMI_Simple --soloCBstart 1 --soloCBlen 12 --soloUMIstart 13 --soloUMIlen 8 --soloBarcodeReadLength 0 --soloCellFilter None --soloUMIfiltering MultiGeneUMI_CR --runThreadN 60 --outMultimapperOrder Random --outSAMmultNmax 1 --soloCBwhitelist None --readFilesCommand zcat --soloFeatures Gene GeneFull --outFilterScoreMin 30 --soloMultiMappers EM --soloUMIdedup 1MM_CR 
 
-	# Run STAR
-    STAR --genomeDir $Genome --readFilesIn *R2.fastq.gz *R1.fastq.gz --soloType CB_UMI_Simple --soloCBstart 1 --soloCBlen 12 --soloUMIstart 13 --soloUMIlen 8 --soloBarcodeReadLength 0 --soloCellFilter None --soloUMIfiltering MultiGeneUMI_CR --runThreadN 20 --outMultimapperOrder Random --outSAMmultNmax 1 --soloCBwhitelist None --readFilesCommand zcat --soloFeatures Gene GeneFull --outFilterScoreMin 30 --soloMultiMappers EM --soloUMIdedup 1MM_CR 
-    
+    	# Cleanup
+	mkdir -p "$Out/$z/"
+    mv failed.downloads Solo.out Log* "$Out/$z/"
+    rm Aligned.out.sam SJ.out.tab Download Donor *.fq.gz 
+    done
 
-    # Cleanup: Move results to donor-specific folder
-    mkdir $Out/$z/
-	mv Solo.out $Out/$z/
-    mv Log* $Out/$z/
+# Unload the genome from shared memory
+STAR --genomeDir "$Genome" --genomeLoad Remove
+rm Log* Aligned.out.sam SJ.out.tab
     
-	rm Aligned.out.sam
-    rm failed.downloads
-	rm SJ.out.tab
-	rm *.fastq.gz
-	rm Donor
-	rm Download
-done
+	

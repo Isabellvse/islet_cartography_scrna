@@ -1,17 +1,5 @@
 #!/bin/bash
 
-# Redirect output and error to a log file
-exec > >(tee -i /work/islet_cartography_scrna/data_download_scripts/Scripts/HPAP_patch_22/output.log)
-exec 2>&1
-
-cd /work/islet_cartography_scrna/data_download_scripts/Scripts/HPAP_patch_22/
-
-# Internalize shell
-eval "$(conda shell.bash hook)"
-
-# Activate conda environment
-conda activate /work/islet_cartography_scrna/scrna_cartography
-
 # Define variables
 study_name="HPAP_patch_22"
 Study="${study_name}.wget"

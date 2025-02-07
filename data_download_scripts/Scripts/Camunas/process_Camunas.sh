@@ -1,11 +1,5 @@
 #!/bin/bash
 
-# Internalize shell
-eval "$(conda shell.bash hook)"
-
-# Activate conda environment
-conda activate /work/islet_cartography_scrna/scrna_cartography
-
 # Define variables
 study_name="Camunas"
 Study="${study_name}.wget"

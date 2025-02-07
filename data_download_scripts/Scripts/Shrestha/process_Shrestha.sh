@@ -1,10 +1,13 @@
 #!/bin/bash
-# Load information about the number of samples in the study
-Out="/data/home/jgsm/VDS2/Mandrup/JM/Pancreas/Data/scRNAseq/Shrestha/"
-mkdir $Out
-Study="Shrestha.wget"
-Donors=$(cut -f 1 $Study | sort | uniq)
-Genome="/data/home/jgsm/Pancreas/hg38/"
+
+# Load study and necessary paths
+study_name="Shrestha"
+Study="${study_name}.wget"
+Out="/work/scRNAseq/${study_name}/Preprocessed"
+mkdir -p "$Out"
+Donors=$(cut -f 1 "$Study" | sort | uniq)
+Genome="/work/islet_cartography_scrna/data_download_scripts/hg38/"
+whitelist="/work/islet_cartography_scrna/whitelist/737K-august-2016.txt"
 
 # Loop over donors
 for z in $Donors; do
@@ -33,17 +36,11 @@ for z in $Donors; do
         R1=$(echo $R1 | tr ' ' ',')
 	R2=$(ls *sra_2.fastq)
 	R2=$(echo $R2 | tr ' ' ',')
-	STAR --genomeDir $Genome --readFilesIn $R2 $R1 --soloType CB_UMI_Simple --soloFeatures Gene GeneFull Velocyto --soloCellFilter None --soloCBmatchWLtype 1MM_multi_Nbase_pseudocounts --clipAdapterType CellRanger4 --outFilterScoreMin 30 --soloMultiMappers EM --soloUMIfiltering MultiGeneUMI_CR --soloUMIdedup 1MM_CR --runThreadN 20 --outMultimapperOrder Random --outSAMmultNmax 1 --soloCBwhitelist Shristi.whitelist_v2 --soloBarcodeReadLength 0
+    
+	STAR --genomeDir $Genome --readFilesIn $R2 $R1 --soloType CB_UMI_Simple --soloFeatures Gene GeneFull --soloCellFilter None --soloCBmatchWLtype 1MM_multi_Nbase_pseudocounts --clipAdapterType CellRanger4 --outFilterScoreMin 30 --soloMultiMappers EM --soloUMIfiltering MultiGeneUMI_CR --soloUMIdedup 1MM_CR --runThreadN 60 --outMultimapperOrder Random --outSAMmultNmax 1 --soloCBwhitelist $whitelist --soloBarcodeReadLength 0
 
 	# Cleanup
-	rm failed.downloads
-	mkdir $Out/$z/
-	mv Solo.out $Out/$z/
-	rm Aligned.out.sam
-	mv Log* $Out/$z/
-	rm SJ.out.tab
-	rm *.fastq
-	rm Donor
-	rm Download
-	rm *.sra
+    mkdir -p "$Out/$z/"
+    mv Solo.out Log* "$Out/$z/" 
+    rm SJ.out.tab *.fastq Donor Download *.sra Aligned.out.sam failed.download
 done

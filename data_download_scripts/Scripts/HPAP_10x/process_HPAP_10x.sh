@@ -1,11 +1,5 @@
 #!/bin/bash
 
-# Internalize shell
-eval "$(conda shell.bash hook)"
-
-# Activate conda environment
-conda activate /work/islet_cartography_scrna/scrna_cartography
-
 # Load study and necessary paths
 study_name="HPAP_10x"
 Study="${study_name}.wget"

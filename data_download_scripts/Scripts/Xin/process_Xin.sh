@@ -1,7 +1,13 @@
 #!/bin/bash
 
+# Internalize shell
+eval "$(conda shell.bash hook)"
+
+# Activate conda environment
+conda activate /work/islet_cartography_scrna/scrna_cartography
+
 # Define variables
-study_name="Enge"
+study_name="Xin"
 Study="${study_name}.wget"
 Out="/work/scRNAseq/${study_name}/Preprocessed"
 mkdir -p "$Out"
@@ -16,11 +22,12 @@ cells=$(cut -f 1 "$Study" | sort | uniq)
 for z in $cells; do
 
 # Setup the files needed to be downloaded for each cell
+
     awk -v VAR=$z '$1 == VAR { print $0 }' "$Study" > cell
     awk '{ print $3"\n out="$2"\n checksum=md5="$4 }' cell > Download
     
     # Download using aria2
-    aria2c -i Download -j10 true --save-session failed.downloads
+    aria2c -i Download -j10 --check-integrity true --save-session failed.downloads
     has_error=`wc -l < failed.downloads`
     
     while [ $has_error -gt 0 ]
@@ -33,17 +40,18 @@ for z in $cells; do
     sleep 10
     done
 
-    # Create the manifest file
+    # Create manifest
     VAR=$(ls *.gz)
-    for i in $VAR; do echo $i | sed "s/_R1.fq.gz//g" - | sed "s/_R2.fq.gz//g" >> Cells; done
-    cat Cells | sort | uniq -c | awk '$1 == "2" { print $2 }' - > ValidCells
+    for i in $VAR; do echo $i | sed "s/.fq.gz//g"  >> Cells; done
+    cat Cells | sort | uniq -c | awk '{ print $2 }' > ValidCells
     rm Cells
     VAR=$(cat ValidCells)
-    for i in $VAR; do echo -e $i"_R1.fq.gz\t"$i"_R2.fq.gz\t"$i >> manifest; done
+    for i in $VAR; do echo -e "$i.fq.gz\t-\t$i" > manifest; done
     rm ValidCells
 
+    
     # Run STAR
-    STAR --genomeLoad LoadAndKeep --genomeDir $Genome --soloType SmartSeq --readFilesManifest ./manifest --soloUMIdedup Exact --soloStrand Unstranded --soloFeatures Gene GeneFull --outFilterScoreMin 30 --soloMultiMappers EM --soloCellFilter None --runThreadN 60 --outMultimapperOrder Random --outSAMmultNmax 1 --readFilesCommand zcat
+	STAR --genomeLoad LoadAndKeep --genomeDir $Genome --soloType SmartSeq --readFilesManifest ./manifest --soloUMIdedup Exact --soloStrand Unstranded --soloFeatures Gene GeneFull --outFilterScoreMin 30 --soloMultiMappers EM --soloCellFilter None --runThreadN 60 --outMultimapperOrder Random --outSAMmultNmax 1 --readFilesCommand zcat
 
 
     # Cleanup: Move results to cell-specific folder

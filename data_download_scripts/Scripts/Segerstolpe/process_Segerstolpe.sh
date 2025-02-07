@@ -1,16 +1,5 @@
 #!/bin/bash
 
-# Redirect output and error to a log file
-exec > >(tee -i /work/islet_cartography_scrna/data_download_scripts/Scripts/Segerstolpe/output.log)
-exec 2>&1
-
-cd /work/islet_cartography_scrna/data_download_scripts/Scripts/Segerstolpe/
-# Internalize shell
-eval "$(conda shell.bash hook)"
-
-# Activate conda environment
-conda activate /work/islet_cartography_scrna/scrna_cartography
-
 # Define variables
 study_name="Segerstolpe"
 Study="${study_name}.wget"

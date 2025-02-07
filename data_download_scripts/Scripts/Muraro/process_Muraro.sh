@@ -1,23 +1,26 @@
 #!/bin/bash
 
+# Internalize shell
+eval "$(conda shell.bash hook)"
+
+# Activate conda environment
+conda activate /work/islet_cartography_scrna/scrna_cartography
+
 # Load study and necessary paths
-study_name="Wang_Sander"
+study_name="Muraro"
 Study="${study_name}.wget"
 Out="/work/scRNAseq/${study_name}/Preprocessed"
-
 mkdir -p "$Out"
 Donors=$(cut -f 1 "$Study" | sort | uniq)
 Genome="/work/islet_cartography_scrna/data_download_scripts/hg38/"
-whitelist="/work/islet_cartography_scrna/whitelist/737K-arc-v1.txt"
+whitelist="/work/islet_cartography_scrna/whitelist/Muraro.whitelist"
 
 # Load STAR genome into memory
 STAR --genomeDir "$Genome" --genomeLoad LoadAndExit
-rm Log* Aligned.out.sam SJ.out.tab
+rm Log*
 
 # Loop over donors
 for z in $Donors; do
-    echo "Processing donor: $z"
-
     # Setup the files needed to be downloaded for each donor
     awk -v VAR=$z '$1 == VAR { print $0 }' "$Study" > Donor
     awk '{ print $3"\n out="$2"\n checksum=md5="$4 }' Donor > Download
@@ -35,12 +38,12 @@ for z in $Donors; do
     done
 
     # Run STAR
-    STAR --genomeLoad LoadAndKeep --genomeDir "$Genome" --readFilesIn *R2.fq.gz *R1.fq.gz --soloType CB_UMI_Simple --soloFeatures Gene GeneFull --soloCellFilter None --soloCBmatchWLtype 1MM_multi_Nbase_pseudocounts --clipAdapterType CellRanger4 --outFilterScoreMin 30 --soloMultiMappers EM --soloUMIfiltering MultiGeneUMI_CR --soloUMIdedup 1MM_CR --runThreadN 60 --outMultimapperOrder Random --outSAMmultNmax 1 --soloCBwhitelist "$whitelist" --soloBarcodeReadLength 0 --soloUMIlen 12 --readFilesCommand zcat
+    	STAR --genomeLoad LoadAndKeep --genomeDir $Genome --readFilesIn *R2.fq.gz *R1.fq.gz --soloType CB_UMI_Simple --soloCBwhitelist $whitelist --soloCBstart 1 --soloCBlen 8 --soloUMIstart 9 --soloUMIlen 4 --soloBarcodeReadLength 0 --soloCellFilter None --soloUMIfiltering MultiGeneUMI_CR --runThreadN 60 --outMultimapperOrder Random --outSAMmultNmax 1 --soloUMIdedup 1MM_CR --soloFeatures Gene GeneFull --outFilterScoreMin 30 --soloMultiMappers EM --soloCBmatchWLtype 1MM --readFilesCommand zcat
 
     # Cleanup: Move results to donor-specific folder
     mkdir -p "$Out/$z/"
     mv failed.downloads Solo.out Log* "$Out/$z/"
-    rm Aligned.out.sam SJ.out.tab *.fq.gz Donor Download 
+    rm Aligned.out.sam SJ.out.tab *.fq.gz Donor Download
 done
 
 # Unload the genome from shared memory

@@ -1,11 +1,5 @@
 #!/bin/bash
 
-# Internalize shell
-eval "$(conda shell.bash hook)"
-
-# Activate conda environment
-conda activate /work/islet_cartography_scrna/scrna_cartography
-
 # Load study and necessary paths
 study_name="Mauvais_Jarvis"
 Study="${study_name}.wget"
@@ -56,18 +50,11 @@ for z in $Donors; do
 
     # Cleanup: Move results to donor-specific folder
     mkdir -p $Out/$z/
-    mv Solo.out $Out/$z/
-    mv Log* $Out/$z/
-    mv failed.downloads $Out/$z/
-    
-    rm Aligned.out.sam
-    rm SJ.out.tab
-    rm *.fastq
-    rm Donor
-    rm Download
-    rm *.sra
-    rm *.fq
+    mv Solo.out Log* failed.downloads $Out/$z/
+
+    rm Aligned.out.sam SJ.out.tab *.fastq Donor Download *.sra *.fq
 done
 
 # Unload the genome from shared memory
 STAR --genomeDir "$Genome" --genomeLoad Remove
+rm Log* Aligned.out.sam SJ.out.tab
