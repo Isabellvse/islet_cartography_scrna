@@ -1,18 +1,12 @@
 #!/bin/bash
 
-# Internalize shell
-eval "$(conda shell.bash hook)"
-
-# Activate conda environment
-conda activate /work/islet_cartography_scrna/scrna_cartography
-
 # Load study and necessary paths
 study_name="Muraro"
 Study="${study_name}.wget"
 Out="/work/scRNAseq/${study_name}/Preprocessed"
 mkdir -p "$Out"
 Donors=$(cut -f 1 "$Study" | sort | uniq)
-Genome="/work/islet_cartography_scrna/data_download_scripts/hg38/"
+Genome="/work/islet_cartography_scrna/scripts/hg38/"
 whitelist="/work/islet_cartography_scrna/whitelist/Muraro.whitelist"
 
 # Load STAR genome into memory

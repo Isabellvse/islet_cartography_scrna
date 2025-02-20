@@ -1,4 +1,13 @@
 #!/bin/bash
+eval "$(conda shell.bash hook)"
+
+# Activate conda environment
+conda activate /work/islet_cartography_scrna/scrna_cartography_clone
+
+exec > >(tee -i /work/islet_cartography_scrna/scripts/download_alignment/Wang_Sander/output.log)
+exec 2>&1
+
+cd /work/islet_cartography_scrna/scripts/download_alignment/Wang_Sander/
 
 # Load study and necessary paths
 study_name="Wang_Sander"
@@ -7,7 +16,7 @@ Out="/work/scRNAseq/${study_name}/Preprocessed"
 
 mkdir -p "$Out"
 Donors=$(cut -f 1 "$Study" | sort | uniq)
-Genome="/work/islet_cartography_scrna/data_download_scripts/hg38/"
+Genome="/work/islet_cartography_scrna/scripts/hg38/"
 whitelist="/work/islet_cartography_scrna/whitelist/737K-arc-v1.txt"
 
 # Load STAR genome into memory
@@ -35,7 +44,7 @@ for z in $Donors; do
     done
 
     # Run STAR
-    STAR --genomeLoad LoadAndKeep --genomeDir "$Genome" --readFilesIn *R2.fq.gz *R1.fq.gz --soloType CB_UMI_Simple --soloFeatures Gene GeneFull --soloCellFilter None --soloCBmatchWLtype 1MM_multi_Nbase_pseudocounts --clipAdapterType CellRanger4 --outFilterScoreMin 30 --soloMultiMappers EM --soloUMIfiltering MultiGeneUMI_CR --soloUMIdedup 1MM_CR --runThreadN 60 --outMultimapperOrder Random --outSAMmultNmax 1 --soloCBwhitelist "$whitelist" --soloBarcodeReadLength 0 --soloUMIlen 12 --readFilesCommand zcat
+    STAR --genomeLoad LoadAndKeep --genomeDir "$Genome" --readFilesIn *R2.fq.gz *R1.fq.gz --soloType CB_UMI_Simple --soloFeatures Gene GeneFull GeneFull_Ex50pAS --soloCellFilter None --soloCBmatchWLtype 1MM_multi_Nbase_pseudocounts --clipAdapterType CellRanger4 --outFilterScoreMin 30 --soloMultiMappers EM --soloUMIfiltering MultiGeneUMI_CR --soloUMIdedup 1MM_CR --runThreadN 60 --outMultimapperOrder Random --outSAMmultNmax 1 --soloCBwhitelist "$whitelist" --soloBarcodeReadLength 0 --soloUMIlen 12 --readFilesCommand zcat
 
     # Cleanup: Move results to donor-specific folder
     mkdir -p "$Out/$z/"

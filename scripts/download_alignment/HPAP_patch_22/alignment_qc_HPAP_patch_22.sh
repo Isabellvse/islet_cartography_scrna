@@ -1,12 +1,5 @@
 #!/bin/bash
 
-# Activate conda environment
-# Internalize shell
-eval "$(conda shell.bash hook)"
-
-# Activate conda environment
-conda activate /work/islet_cartography_scrna/scrna_cartography
-
 study_name="HPAP_patch_22"
 study="${study_name}.wget"
 data="/work/scRNAseq/${study_name}/Preprocessed"

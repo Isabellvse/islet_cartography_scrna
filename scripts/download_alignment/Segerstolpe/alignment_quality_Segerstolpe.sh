@@ -1,14 +1,5 @@
 #!/bin/bash
 
-cd /work/islet_cartography_scrna/data_download_scripts/Scripts/Segerstolpe/
-
-# Activate conda environment
-# Internalize shell
-eval "$(conda shell.bash hook)"
-
-# Activate conda environment
-conda activate /work/islet_cartography_scrna/scrna_cartography
-
 study_name="Segerstolpe"
 study="${study_name}.wget"
 data="/work/scRNAseq/${study_name}/Preprocessed"

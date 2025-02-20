@@ -6,7 +6,7 @@ Study="${study_name}.wget"
 Out="/work/scRNAseq/${study_name}/Preprocessed"
 mkdir -p "$Out"
 
-Genome="/work/islet_cartography_scrna/data_download_scripts/hg38/"
+Genome="/work/islet_cartography_scrna/scripts/hg38/"
 whitelist_v2="/work/islet_cartography_scrna/whitelist/737K-august-2016.txt"
 whitelist_v3="/work/islet_cartography_scrna/whitelist/3M-february-2018.txt"
 Donors=$(cut -f 1 "$Study" | sort | uniq)

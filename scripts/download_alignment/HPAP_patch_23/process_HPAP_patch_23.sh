@@ -1,17 +1,11 @@
 #!/bin/bash
 
-# Internalize shell
-eval "$(conda shell.bash hook)"
-
-# Activate conda environment
-conda activate /work/islet_cartography_scrna/scrna_cartography
-
 # Define variables
 study_name="HPAP_patch_23"
 Study="${study_name}.wget"
 #Out="/work/scRNAseq/${study_name}/Preprocessed"
 #mkdir -p "$Out"
-Genome="/work/islet_cartography_scrna/data_download_scripts/hg38/"
+Genome="/work/islet_cartography_scrna/scripts/hg38/"
 
 # check that all files excists
 awk '{ print $3}' "$Study" > dry_run

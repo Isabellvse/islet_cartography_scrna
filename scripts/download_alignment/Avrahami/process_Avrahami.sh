@@ -5,7 +5,7 @@ study_name="Avrahami"
 Study="${study_name}.wget"
 Out="/work/scRNAseq/${study_name}/Preprocessed"
 mkdir -p "$Out"
-Genome="/work/islet_cartography_scrna/data_download_scripts/hg38/"
+Genome="/work/scripts/hg38/"
 
 # Load STAR genome into memory
 STAR --genomeDir "$Genome" --genomeLoad LoadAndExit
