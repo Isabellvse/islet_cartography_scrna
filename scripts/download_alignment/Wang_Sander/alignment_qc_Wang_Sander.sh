@@ -21,11 +21,17 @@ for z in $donors; do
     # Create CSV file for features and add prefix genefull
     awk '{print $1 "_genefull_feat" "," $2}' "${data}/${z}/Solo.out/GeneFull/Features.stats" > "$tmp/genefull_features.csv"
 
+    # Create CSV file for features and add prefix genefull_ex50pas
+    awk '{print $1 "_genefull_ex50pas_feat" "," $2}' "${data}/${z}/Solo.out/GeneFull_Ex50pAS/Features.stats" > "$tmp/genefull_ex50pas_features.csv"
+
     # Add prefix to summary CSV file gene
     awk -F',' '{print $1 "_gene_sum" "," $2}' "${data}/${z}/Solo.out/Gene/Summary.csv" > "$tmp/gene_summary.csv"
 
     # Add prefix to summary CSV file genefull
     awk -F',' '{print $1 "_genefull_sum" "," $2}' "${data}/${z}/Solo.out/GeneFull/Summary.csv" > "$tmp/genefull_summary.csv"
+
+    # Add prefix to summary CSV file genefull_ex50pas
+    awk -F',' '{print $1 "_genefull_ex50pas_sum" "," $2}' "${data}/${z}/Solo.out/GeneFull_Ex50pAS/Summary.csv" > "$tmp/genefull_ex50pas_summary.csv"
 
     # Create CSV file for barcode.stats
     awk '{print $1 "_barcode" "," $2}' "${data}/${z}/Solo.out/Barcodes.stats" > "$tmp/barcode.csv"
@@ -56,10 +62,10 @@ for z in $donors; do
     chmod +x "$tmp"/*.csv
 
     # Combine the files
-    cat "$tmp/log.csv" "$tmp/barcode.csv" "$tmp/gene_features.csv" "$tmp/gene_summary.csv" "$tmp/genefull_features.csv" "$tmp/genefull_summary.csv" >> "$tmp/${z}_combined.csv"
+    cat "$tmp/log.csv" "$tmp/barcode.csv" "$tmp/gene_features.csv" "$tmp/gene_summary.csv" "$tmp/genefull_features.csv" "$tmp/genefull_summary.csv" "$tmp/genefull_ex50pas_features.csv" "$tmp/genefull_ex50pas_summary.csv" >> "$tmp/${z}_combined.csv"
 
     # Clean up intermediate files for this donor
-    rm "$tmp/log.csv" "$tmp/barcode.csv" "$tmp/gene_features.csv" "$tmp/gene_summary.csv" "$tmp/genefull_features.csv" "$tmp/genefull_summary.csv"
+    rm "$tmp/log.csv" "$tmp/barcode.csv" "$tmp/gene_features.csv" "$tmp/gene_summary.csv" "$tmp/genefull_features.csv" "$tmp/genefull_summary.csv" "$tmp/genefull_ex50pas_features.csv" "$tmp/genefull_ex50pas_summary.csv"
 done
 
 # Combine all files into one
