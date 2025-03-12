@@ -8,6 +8,7 @@
 # Ignore entire directories
 misc_scripts/
 scripts/hg38/
+scripts/CondaScript.sh
 scripts/strandedness/
 whitelist/
 scrna_cartography/
