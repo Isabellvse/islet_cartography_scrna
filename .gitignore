@@ -1,6 +1,7 @@
-misc_scripts
-scripts/hg38
-scripts/strandedness
-whitelist
-scrna_cartography
-scrna_cartography_clone
+../misc_scripts
+../scripts/hg38
+../scripts/strandedness
+../whitelist
+../scrna_cartography
+../scrna_cartography_clone
+../genome_files
