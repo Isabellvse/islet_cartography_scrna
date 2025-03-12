@@ -5,12 +5,11 @@ eval "$(conda shell.bash hook)"
 
 # Activate conda environment
 conda activate /work/islet_cartography_scrna/scrna_cartography
-exec > >(tee -i /work/islet_cartography_scrna/scripts/download_alignment/Son/output.log)
-exec 2>&1
-cd /work/islet_cartography_scrna/scripts/download_alignment/Son/
+
 
 # Define variables
 study_name="Son"
+cd "/work/islet_cartography_scrna/scripts/download_alignment/${study_name}/"
 Study="${study_name}.wget"
 Out="/work/scRNAseq/${study_name}/Preprocessed"
 mkdir -p "$Out"

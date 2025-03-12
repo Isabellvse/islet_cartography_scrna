@@ -1,11 +1,12 @@
 #!/bin/bash
 
 study_name="Camunas"
+cd "/work/islet_cartography_scrna/scripts/download_alignment/${study_name}/"
 study="${study_name}.wget"
 data="/work/scRNAseq/${study_name}/Preprocessed"
 
 # Output folder
-out="/work/islet_cartography_scrna/data_export/${study_name}"
+out="/work/islet_cartography_scrna/data/star_quality"
 mkdir -p "$out"
 
 # Temporary folder

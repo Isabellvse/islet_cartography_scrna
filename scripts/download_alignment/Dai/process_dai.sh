@@ -2,14 +2,9 @@
 eval "$(conda shell.bash hook)"
 conda activate /work/islet_cartography_scrna/scrna_cartography
 
-# Redirect output and error to a log file
-exec > >(tee -i /work/islet_cartography_scrna/scripts/download_alignment/Dai/output.log)
-exec 2>&1
-
-cd /work/islet_cartography_scrna/scripts/download_alignment/Dai/
-
 # Define variables
 study_name="Dai"
+cd "/work/islet_cartography_scrna/scripts/download_alignment/${study_name}/"
 Study="${study_name}.wget"
 Out="/work/scRNAseq/${study_name}/Preprocessed"
 mkdir -p "$Out"

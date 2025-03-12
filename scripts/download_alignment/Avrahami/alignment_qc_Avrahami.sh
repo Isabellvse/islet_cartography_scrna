@@ -1,7 +1,5 @@
 #!/bin/bash
 
-cd /work/islet_cartography_scrna/data_download_scripts/Scripts/Avrahami/
-
 # Activate conda environment
 # Internalize shell
 eval "$(conda shell.bash hook)"
@@ -10,11 +8,13 @@ eval "$(conda shell.bash hook)"
 conda activate /work/islet_cartography_scrna/scrna_cartography
 
 study_name="Avrahami"
+cd "/work/islet_cartography_scrna/scripts/download_alignment/${study_name}/"
+
 study="${study_name}.wget"
 data="/work/scRNAseq/${study_name}/Preprocessed"
 
 # Output folder
-out="/work/islet_cartography_scrna/data_export/${study_name}"
+out="/work/islet_cartography_scrna/data/star_quality"
 mkdir -p "$out"
 
 # Temporary folder

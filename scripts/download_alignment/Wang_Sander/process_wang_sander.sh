@@ -4,13 +4,10 @@ eval "$(conda shell.bash hook)"
 # Activate conda environment
 conda activate /work/islet_cartography_scrna/scrna_cartography_clone
 
-exec > >(tee -i /work/islet_cartography_scrna/scripts/download_alignment/Wang_Sander/output.log)
-exec 2>&1
-
-cd /work/islet_cartography_scrna/scripts/download_alignment/Wang_Sander/
-
 # Load study and necessary paths
 study_name="Wang_Sander"
+cd "/work/islet_cartography_scrna/scripts/download_alignment/${study_name}/"
+
 Study="${study_name}.wget"
 Out="/work/scRNAseq/${study_name}/Preprocessed"
 
