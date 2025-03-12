@@ -1,7 +1,16 @@
-../misc_scripts
-../scripts/hg38
-../scripts/strandedness
-../whitelist
-../scrna_cartography
-../scrna_cartography_clone
-../genome_files
+# Ignore .ipynb_checkpoints directories
+**/.ipynb_checkpoints/
+
+# Ignore specific script and swap files
+**/*.sh.swp
+**/*.sh.swo
+**/*.txt.swp
+
+# Ignore entire directories
+misc_scripts/
+scripts/hg38/
+scripts/strandedness/
+whitelist/
+scrna_cartography/
+scrna_cartography_clone/
+genome_files/
