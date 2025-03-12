@@ -2,9 +2,8 @@
 **/.ipynb_checkpoints/
 
 # Ignore specific script and swap files
-**/*.sh.swp
+**/*.swp
 **/*.sh.swo
-**/*.txt.swp
 
 # Ignore entire directories
 misc_scripts/
