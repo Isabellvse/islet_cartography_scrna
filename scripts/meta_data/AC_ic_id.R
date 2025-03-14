@@ -8,7 +8,7 @@ create_directories(here::here("islet_cartography_scrna/data/metadata/"))
 # load --------------------------------------------------------------------
 # data_overview
 overview <- readxl::read_xlsx(here::here("islet_cartography_scrna/data/overview_of_data.xlsx"), sheet = "overview", n_max = 25) |> 
-  dplyr::select(study, name, library_prep)
+  dplyr::select(study, name, library_prep, cell_nuclei)
 
 # combined meta data frame
 meta_list <- qs::qread(here::here("islet_cartography_scrna/data/metadata/meta_list_1.qs")) |> 
