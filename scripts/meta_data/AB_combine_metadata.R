@@ -4,7 +4,7 @@
 # Set up ------------------------------------------------------------------
 base::source(here::here("islet_cartography_scrna/scripts/misc/set_up.R"))
 create_directories(here::here("islet_cartography_scrna/data/metadata/"))
-
+set.seed(1000)
 # load data ---------------------------------------------------------------
 # Get paths
 files <- base::list.files(path = here::here("islet_cartography_scrna/data/metadata"), pattern = ".csv$", full.names = T)
@@ -30,4 +30,4 @@ split_dfs <- df_loaded[["HPAP"]] |> (\(df) base::split(df, factor(df$name)))()
 df_loaded[["HPAP"]] <- NULL
 df_loaded <- BiocGenerics::append(df_loaded, split_dfs)
 # Save --------------------------------------------------------------------
-qs::qsave(df_loaded, here::here("islet_cartography_scrna/data/metadata/meta_list_1.qs"))
+qs2::qs_save(df_loaded, here::here("islet_cartography_scrna/data/metadata/meta_list_1.qs2"))
