@@ -1,12 +1,4 @@
-my_theme <- function() {
-  ggplot2::theme_classic() +
-    ggplot2::theme(strip.background = element_blank(),
-                   plot.title = element_text(size = 8),
-                   axis.title = element_text(size = 7),
-                   axis.text = element_text(size = 6))
-}
-
-#' Create Directories if They Do Not Exist
+#' Create directories if they do not exist
 #'
 #' This function checks if each directory in the provided list exists. If any directory
 #' does not exist, it creates the directory (along with any necessary parent directories).
@@ -35,32 +27,34 @@ create_directories <- function(output_dir) {
   })
 }
 
+
+# Loading  ----------------------------------------------------------------
 load_data_with_classes <- function(data_file = "data.csv", class_file = "column_classes.csv") {
   # Read the column classes
   df_classes <- vroom::vroom(class_file, delim = ",", col_types = cols(column = vroom::col_character(),
                                                                        class = vroom::col_character()))
-
+  
   # Create a named list of column types based on the class information
   col_types <- purrr::set_names(
     purrr::map(df_classes$class, function(x) {
       base::switch(x,
-             "logical" = vroom::col_logical(),
-             "integer" = vroom::col_integer(),
-             "numeric" = vroom::col_double(),
-             "character" = vroom::col_character(),
-             "date" = vroom::col_date(format = ""),
-             "time" = vroom::col_time(format = ""),
-             "datetime" = vroom::col_datetime(format = ""),
-             "factor" = vroom::col_factor(levels = NULL, ordered = FALSE),
-             vroom::col_guess()  # Default to guessing for unknown types
+                   "logical" = vroom::col_logical(),
+                   "integer" = vroom::col_integer(),
+                   "numeric" = vroom::col_double(),
+                   "character" = vroom::col_character(),
+                   "date" = vroom::col_date(format = ""),
+                   "time" = vroom::col_time(format = ""),
+                   "datetime" = vroom::col_datetime(format = ""),
+                   "factor" = vroom::col_factor(levels = NULL, ordered = FALSE),
+                   vroom::col_guess()  # Default to guessing for unknown types
       )
     }),
     df_classes$column
   )
-
+  
   # Use vroom to load the data with the correct column types
   df_loaded <- vroom::vroom(data_file, col_types = col_types, delim = ",", n_max = 10000)
-
+  
   return(df_loaded)
 }
 
@@ -95,12 +89,30 @@ load_star_quality <- function(path, i){
     dplyr::mutate(dplyr::across(.cols = dplyr::contains("%"),
                                 .fns = ~stringr::str_remove(.x, pattern = "%") |>
                                   base::as.numeric()),
+                  dplyr::across(.cols = c("Deletion_rate_per_base", "Insertion_rate_per_base"), 
+                                .fns = ~stringr::str_remove(.x, pattern = "%") |>
+                                  base::as.numeric()),
                   name = i) |>
-    dplyr::relocate(name)
+    dplyr::rename("Deletion_rate_per_base_%" = "Deletion_rate_per_base",
+                  "Insertion_rate_per_base_%" = "Insertion_rate_per_base") |> 
+  dplyr::relocate(name)
   return(df)
 }
 
-read_mtx <- function(path, feature, workers =  parallelly::availableCores()){
+# Quality control ---------------------------------------------------------
+
+
+#' Read and Load mtx files in parallel
+#'
+#' @param path A string specifying the base directory containing mtx files.
+#' @param feature A string specifying the folder name for feature type (e.g., "Gene" or "GeneFull")
+#' @param workers An integer specifying the number of parallel workers to use. Default is the number of available CPU cores (parallelly::availableCores()).
+#'
+#' @returns A named list of mtx files, where names correspond to extracted sample names (from paths)
+#'
+#' @examples read_mtx(path = "data/Preprocessed/*/Solo.out/", feature = "Gene")
+#' where * correspond to sample folder name
+read_mtx <- function(path, feature){
   
   # Get list of all relevant files
   base_path <- base::paste0(path, "/", feature, "/", "raw")
@@ -126,13 +138,10 @@ read_mtx <- function(path, feature, workers =  parallelly::availableCores()){
                   features = `features.tsv`) |> 
     tibble::column_to_rownames("sample")
   
-  # Read files in parallel
-  future::plan(multisession, workers = workers)  # Enable parallel processing
-  
-  mtx_list <- furrr::future_pmap(file_group, function(mtx, barcodes, features) {
+  mtx_list <- purrr::pmap(file_group, function(mtx, barcodes, features) {
     Seurat::ReadMtx(mtx = mtx, cells = barcodes, features = features, feature.column = 1)
-  },
-  .options = furrr::furrr_options(seed = TRUE))|> 
+  }
+  )|> 
     purrr::set_names(nm = BiocGenerics::rownames(file_group)) 
   
   base::message(base::paste0("Finished reading mtx files from: ", base_path))
@@ -150,11 +159,10 @@ sample_to_ic_id <- function(mtx_list, ic_id_df) {
   return(mtx_list)
 }
 
-prefix_colnames <- function(mtx_list, workers = parallelly::availableCores()) {
-  # Enable parallel processing
-  future::plan(multisession, workers = workers)
+
+prefix_colnames <- function(mtx_list) {
   
-  furrr::future_imap(mtx_list, ~ {
+  purrr::imap(mtx_list, ~ {
     # Get current column names
     colnames_x <- BiocGenerics::colnames(.x)
     
@@ -169,8 +177,9 @@ prefix_colnames <- function(mtx_list, workers = parallelly::availableCores()) {
     }
     
     return(.x)
-  }, .options = furrr::furrr_options(seed = TRUE)) 
+  }) 
 }
+
 
 #' @title rank_barcodes
 #'
@@ -309,63 +318,160 @@ rank_barcodes = function(counts, type = "UMI", psi.min = 2, psi.max = 5, alpha =
   return(output)
 }
 
-rank_plot <- function(rank, mtx_filter){
-  rank$ranks |> 
-    tibble::rownames_to_column("barcode") |> 
-    dplyr::mutate(not_empty = dplyr::case_when(barcode %in% colnames(mtx_filter) ~ "Not empty",
-                                               .default = base::as.character("Empty")),
-                  not_empty = base::factor(not_empty, levels = c("Not empty", "Empty"))) |> 
-    ggplot2::ggplot(aes(x = rank, y = counts, color = not_empty)) +
-    ggplot2::geom_point(shape = 20) +
-    ggplot2::scale_color_manual(values = c("Not empty" = "#000000", "Empty" = "#D3D3D3")) +
-    ggplot2::scale_x_log10(breaks = scales::trans_breaks("log10", function(x) 10^x),
-                           labels = scales::trans_format("log10", scales::math_format(10^.x))) +
-    ggplot2::scale_y_log10(breaks = scales::trans_breaks("log10", function(x) 10^x),
-                           labels = scales::trans_format("log10", scales::math_format(10^.x))) +
-    ggplot2::labs(x = "Log Rank",
-                  y = "Log UMIs") +
-    ggplot2::geom_hline(yintercept = rank$lower.threshold, color = "red", linetype = "dashed") +
-    my_theme()
-}
-
-remove_empty_droplets <- function(mtx, fdr = 0.001){
+#' Identify Empty Droplets in Single-Cell RNA-seq Data
+#'
+#' @param mtx A sparse matrix format with features on the rows and barcodes on the columns (feature x barcodes)
+#' @param fdr A numeric value specifying the false discovery rate (FDR) threshold for identifying empty droplets. Default is 0.001.
+#'
+#' @returns A list containing:
+#'   - `rank`: Barcode ranking information.
+#'   - `lower_threshold`: The lower threshold for barcode ranking.
+#'   - `not_empty`: Vector of barcodes identified as non-empty droplets.
+#' 
+#' @examples identify_empty_droplets(mtx, fdr = 0.001)
+empty_droplets <- function(mtx, fdr = 0.001, manual_thres = NULL, ...){
   # Get barcode ranks and threshold
-  rank<- rank_barcodes(mtx)
+  rank<- rank_barcodes(mtx, ...)
   
-  # Find empty droplets
-  empty <- DropletUtils::emptyDrops(mtx, 
-                                    lower = rank$lower.threshold, 
-                                    BPPARAM = BiocParallel::MulticoreParam())
+  if(!is.null(manual_thres)){
+    # Find empty droplets using manual threshold
+    empty <- DropletUtils::emptyDrops(mtx, 
+                                      lower = manual_thres, 
+                                      BPPARAM = BiocParallel::MulticoreParam())
+    
+    mtx_filter <-
+      mtx[, BiocGenerics::colnames(mtx) %in%
+            BiocGenerics::rownames(empty)[base::which(empty$FDR <= fdr)]]
+    
+    output <- base::list(rank = rank$ranks,
+                         lower_threshold = data.frame(automatic = rank$lower.threshold,
+                                                      manual = manual_thres),
+                         not_empty = data.frame(not_empty = BiocGenerics::colnames(mtx_filter)))
+  } else {
+    # Find empty droplets using automatic threshold
+    empty <- DropletUtils::emptyDrops(mtx, 
+                                      lower = rank$lower.threshold, 
+                                      BPPARAM = BiocParallel::MulticoreParam())
+    mtx_filter <-
+      mtx[, BiocGenerics::colnames(mtx) %in%
+            BiocGenerics::rownames(empty)[base::which(empty$FDR <= fdr)]]
+    
+    output <- base::list(rank = rank$ranks,
+                         lower_threshold = data.frame(automatic = rank$lower.threshold),
+                         not_empty = data.frame(not_empty = BiocGenerics::colnames(mtx_filter)))
+  }
   
-  # Remove empty droplets
-  mtx_filter <-
-    mtx[, BiocGenerics::colnames(mtx) %in%
-          BiocGenerics::rownames(empty)[base::which(empty$FDR <= fdr)]]
-  
-  # Rank plot
-  plot <- rank_plot(rank = rank, mtx_filter = mtx_filter)
-  
-  output <- base::list(rank = rank$ranks,
-                       lower_threshold = rank$lower.threshold,
-                       not_empty = BiocGenerics::colnames(mtx_filter),
-                       rank_plot= plot)
+  return(output)
 }
 
-quality_metrics <- function(mtx, barcodes, mitogenes, ribogenes, pcgenes, mtx_gene, mtx_genefull){
-  # keep only non empty droplets
-  none_mtx <- mtx[, BiocGenerics::colnames(mtx) %in% barcodes]
+identify_empty_droplets <- function(study_metadata, study_name, defaults = list(psi.max = 5, manual_thres = NULL), donor_settings = NULL, save_path, ...) {
+  ## Identify empty drops
+  results <-  study_metadata |> 
+    ### Load mtx files to use for empty droplet detection
+    dplyr::mutate(selected_mtx = purrr::pmap(list(cell_nuclei, name, sample), function(cell_nuclei, name, sample) {
+      if (cell_nuclei == "cell") {
+        read_mtx(path = paste0("/work/scRNAseq/", name, "/Preprocessed/", sample, "/Solo.out"), feature = "Gene") |> purrr::pluck(sample)
+      } else if (cell_nuclei == "nuclei") {
+        read_mtx(path = paste0("/work/scRNAseq/", name, "/Preprocessed/", sample, "/Solo.out"), feature = "GeneFull_Ex50pAS") |> purrr::pluck(sample)
+      } else {
+        stop("read of mtx failed")
+      }
+    }), 
+      selected_mtx = purrr::map2(selected_mtx, ic_id, ~{colnames_mtx <- BiocGenerics::colnames(.x)
+      BiocGenerics::colnames(.x) <- base::paste0(.y, "_", colnames_mtx)
+      return(.x)
+      }),
+      ### Extract donor-specific settings 
+      donor_params = purrr::map(ic_id, ~ {
+        if (!is.null(donor_settings_droplet) && .x %in% base::names(donor_settings_droplet)) {
+          # Merge donor-specific settings with defaults
+          utils::modifyList(defaults,donor_settings_droplet[[.x]])
+        } else {
+          # Use defaults if no donor-specific settings exist
+          defaults
+        }
+      }),
+      ### Identify empty droplets
+      barcodes = purrr::map2(selected_mtx, donor_params, function(mtx, params) {
+        # Verify the input data type
+        if (!inherits(mtx, "dgCMatrix")) {
+          stop("Input is not a dgCMatrix")
+        }
+        # Call empty_droplets with verified inputs and explicit arguments
+        empty_droplets(mtx, manual_thres = params$manual_thres, psi.max = params$psi.max)
+      })) |> 
+    dplyr::select(-selected_mtx)
+  
+  ## Save ranks
+  ranks <- results |> dplyr::pull(barcodes) |> 
+    purrr::map(purrr::pluck("rank")) |>
+    purrr::set_names(results$ic_id)
+  
+  ### Save ranks as csv 
+  purrr::imap(ranks, function(x, idx) {tibble::rownames_to_column(x, "barcode") |>  
+      vroom::vroom_write(base::paste0(save_path, 
+                                      study_name, 
+                                      "_",
+                                      idx,
+                                      "_barcode_ranks.csv"),
+                         delim = ",", col_names = TRUE)})
+  
+  ### Save threshold as csv
+  threshold <- results |> dplyr::pull(barcodes) |> 
+    purrr::map(purrr::pluck("lower_threshold")) |>
+    purrr::set_names(results$ic_id)
+  
+  ### Save thresholds as csv 
+  purrr::imap(threshold, function(x, idx) {x |>  
+      vroom::vroom_write(base::paste0(save_path, 
+                                      study_name, 
+                                      "_",
+                                      idx,
+                                      "_lower_threshold.csv"),
+                         delim = ",", col_names = TRUE)})
+  
+  ### Save non empty droplets as csv
+  not_empty <- results |> dplyr::pull(barcodes) |> 
+    purrr::map(purrr::pluck("not_empty")) |>
+    purrr::set_names(results$ic_id)
+  
+  ### Save thresholds as csv 
+  purrr::imap(not_empty, function(x, idx) {x |>  
+      vroom::vroom_write(base::paste0(save_path, 
+                                      study_name, 
+                                      "_",
+                                      idx,
+                                      "_not_empty.csv"),
+                         delim = ",", col_names = TRUE)})
+  return(NULL)
+}
+
+
+#' Compute Quality Metrics for Single-Cell RNA-seq Data
+#'
+#' @param mtx A sparse matrix format with features on the rows and barcodes on the columns (feature x barcodes)
+#' @param mitogenes A vector of mitochondrial gene names
+#' @param ribogenes A vector of ribosomal gene names
+#' @param pcgenes A vector of protein-coding gene names
+#' @param mtx_gene A sparse matrix of exon counts (feature x barcodes)
+#' @param mtx_genefull A sparse matrix of exon+intron counts (feature x barcodes)
+#'
+#' @returns A dataframe with quality control metrics
+#' @examples quality_metrics(mtx, mitogenes, ribogenes, pcgenes, mtx_gene, mtx_genefull)
+#' 
+quality_metrics <- function(mtx, mitogenes, ribogenes, pcgenes, mtx_gene, mtx_genefull){
   
   ## Contrast 
   # Match barcodes between the input counts and the mtx_gene matrix
-  mtx_gene_sub <- mtx_gene[, BiocGenerics::colnames(mtx_gene) %in% BiocGenerics::colnames(none_mtx)]
-  mtx_gene_sub <- mtx_gene_sub[, base::match(BiocGenerics::colnames(none_mtx), BiocGenerics::colnames(mtx_gene_sub))]
+  mtx_gene_sub <- mtx_gene[, BiocGenerics::colnames(mtx_gene) %in% BiocGenerics::colnames(mtx)]
+  mtx_gene_sub <- mtx_gene_sub[, base::match(BiocGenerics::colnames(mtx), BiocGenerics::colnames(mtx_gene_sub))]
   # Match barcodes between the input counts and the mtx_gene matrix
-  mtx_genefull_sub <- mtx_genefull[, BiocGenerics::colnames(mtx_genefull) %in% BiocGenerics::colnames(none_mtx)]
-  mtx_genefull_sub <- mtx_genefull_sub[, base::match(BiocGenerics::colnames(none_mtx), BiocGenerics::colnames(mtx_genefull_sub))]
-
+  mtx_genefull_sub <- mtx_genefull[, BiocGenerics::colnames(mtx_genefull) %in% BiocGenerics::colnames(mtx)]
+  mtx_genefull_sub <- mtx_genefull_sub[, base::match(BiocGenerics::colnames(mtx), BiocGenerics::colnames(mtx_genefull_sub))]
+  
   # Internalize matrix
   metrics <- BiocGenerics::as.data.frame(base::matrix(ncol=8, 
-                                                        nrow=ncol(none_mtx)))
+                                                      nrow=ncol(mtx)))
   # Set colnames
   BiocGenerics::colnames(metrics) <- c("barcode",
                                        "logUMIs",
@@ -376,12 +482,12 @@ quality_metrics <- function(mtx, barcodes, mitogenes, ribogenes, pcgenes, mtx_ge
                                        "contrast_fraction", 
                                        "complexity")
   
-  metrics[,1] <- BiocGenerics::colnames(none_mtx)
-  metrics[,2] <- Matrix::colSums(none_mtx)
-  metrics[,3] <- Matrix::colSums(none_mtx > 0)
-  metrics[,4] <- Matrix::colSums(none_mtx[ BiocGenerics::rownames(none_mtx) %in% mitogenes,]) / metrics[,2]
-  metrics[,5] <- Matrix::colSums(none_mtx[ BiocGenerics::rownames(none_mtx) %in% ribogenes,]) / metrics[,2]
-  metrics[,6] <- Matrix::colSums(none_mtx[ BiocGenerics::rownames(none_mtx) %in% pcgenes,]) / metrics[,2]
+  metrics[,1] <- BiocGenerics::colnames(mtx)
+  metrics[,2] <- Matrix::colSums(mtx)
+  metrics[,3] <- Matrix::colSums(mtx > 0)
+  metrics[,4] <- Matrix::colSums(mtx[ BiocGenerics::rownames(mtx) %in% mitogenes,]) / metrics[,2]
+  metrics[,5] <- Matrix::colSums(mtx[ BiocGenerics::rownames(mtx) %in% ribogenes,]) / metrics[,2]
+  metrics[,6] <- Matrix::colSums(mtx[ BiocGenerics::rownames(mtx) %in% pcgenes,]) / metrics[,2]
   metrics[,7] <- Matrix::colSums(mtx_gene_sub) / Matrix::colSums(mtx_genefull_sub)
   metrics[,8] <- metrics[,3] / metrics[,2]
   metrics[,2] <- base::log(metrics[,2])
@@ -390,99 +496,248 @@ quality_metrics <- function(mtx, barcodes, mitogenes, ribogenes, pcgenes, mtx_ge
   return(metrics)
 }
 
-return(mtx_list)
-process_study_samples <- function(path, study_metadata, genes, study_name, droplet_based, plate_based) {
-
+quality_metrics_per_sample <- function(path, study_metadata, genes, study_name, not_empty) {
   
   # Extract unique library prep
   library_prep <- base::unique(study_metadata$library_prep)
-  if (length(library_prep) > 1) stop("Multiple library preps found in study. Please split them first.")
+  base::message("library_prep: '", library_prep, "'")
   
-  # Check if it's droplet or plate-based
-  if (library_prep %in% droplet_based) {
+  platform <- base::unique(study_metadata$platform)
+  
+  if (length(platform) != 1) stop("Multiple library preps found in study. Please split them first.")
+  
+  # Define expected order of samples
+  expected_ids <- study_metadata$ic_id
+  
+  # Validate input length consistency
+  if (base::length(study_metadata$cell_nuclei) != base::length(study_metadata$ic_id)) {
+    stop("Mismatch in lengths of `cell_nuclei` and `ic_id`.")
+  }
+  
+  ## Load all mtx files 
+  mtx_gene_list <- read_mtx(path, "Gene")
+  mtx_gene_list <- sample_to_ic_id(mtx_gene_list, study_metadata)
+  mtx_gene_list <- prefix_colnames(mtx_gene_list)
+  
+  mtx_genefull_list <- read_mtx(path, "GeneFull")
+  mtx_genefull_list <- sample_to_ic_id(mtx_genefull_list, study_metadata)
+  mtx_genefull_list <- prefix_colnames(mtx_genefull_list)
+  
+  # Make sure files are in the expected order
+  mtx_gene_list <- mtx_gene_list[base::match(expected_ids, base::names(mtx_gene_list))]
+  mtx_genefull_list <- mtx_genefull_list[base::match(expected_ids, base::names(mtx_genefull_list))]
+  
+  ### Define count methods which will be used 
+  rna_count <- "exon"
+  
+  # Load GeneFull_Ex50pAS only if any sample is nuclei
+  mtx_genefull_50_list <- NULL
+  if ("nuclei" %in% study_metadata$cell_nuclei) {
+    base::message("Nuclei samples, loading GeneFull_Ex50pAS")
+    
+    mtx_genefull_50_list <- read_mtx(path, "GeneFull_Ex50pAS")
+    mtx_genefull_50_list <- sample_to_ic_id(mtx_genefull_50_list, study_metadata)
+    mtx_genefull_50_list <- prefix_colnames(mtx_genefull_50_list)
+    
+    # Make sure files are in the expected order
+    mtx_genefull_50_list <- mtx_genefull_50_list[base::match(expected_ids, base::names(mtx_genefull_50_list))]
+    
+    
+    ### Define count methods which will be used 
+    rna_count <- "exon_intron"
+  }
+  
+  # Check that all required ic_ids are present in the loaded lists
+  missing_gene_ids <- BiocGenerics::setdiff(expected_ids, names(mtx_gene_list))
+  if (base::length(missing_gene_ids) > 0) {
+    stop(base::paste("The following ic_ids are missing in `mtx_gene_list`:", base::paste(missing_gene_ids, collapse = ", ")))
+  }
+  if (!is.null(mtx_genefull_50_list)) {
+    missing_50_ids <- BiocGenerics::setdiff(expected_ids, base::names(mtx_genefull_50_list))
+    if (base::length(missing_50_ids) > 0) {
+      stop(base::paste("The following ic_ids are missing in `mtx_genefull_50_list`:", base::paste(missing_50_ids, collapse = ", ")))
+    }
+  }
+  
+  # Check if it's droplet, plate-based or plate-based with barcode
+  if (base::as.character(platform) == "droplet") {
     base::message("Method is droplet based")
     
-    # Load all mtx files
-    mtx_gene_list <- read_mtx(path, "Gene")
-    mtx_gene_list <- sample_to_ic_id(mtx_gene_list, study_metadata) # Add ic_id names to mtx list
-    mtx_gene_list <- prefix_colnames(mtx_gene_list) # Add ic_id prefix to barcodes
+    # Get not empty barcodes
+    not_empty_barcodes <- not_empty[grep(study_name, names(not_empty))] |> 
+      dplyr::bind_rows() |> dplyr::pull("not_empty")
     
-    mtx_genefull_list <- read_mtx(path, "GeneFull")
-    mtx_genefull_list <- sample_to_ic_id(mtx_genefull_list, study_metadata)
-    mtx_genefull_list <- prefix_colnames(mtx_genefull_list)
-    
-    # Load GeneFull_Ex50pAS only if any sample is nuclei
-    mtx_genefull_50_list <- NULL
-    if ("nuclei" %in% study_metadata$cell_nuclei) {
-      base::message("Nuclei samples, loading GeneFull_Ex50pAS")
-      
-      mtx_genefull_50_list <- read_mtx(path, "GeneFull_Ex50pAS")
-      mtx_genefull_50_list <- sample_to_ic_id(mtx_genefull_50_list, study_metadata)
-      mtx_genefull_50_list <- prefix_colnames(mtx_genefull_50_list)
-    }
-    
-    future::plan(multisession, workers = parallelly::availableCores())  # Enable parallel processing
-    
-    # Process each sample individually
+    ## Droplet quality control ----
     results <- study_metadata %>%
       dplyr::mutate(
-        # Main mtx file to use, if it is cell use gene count, if nuclei use genefull_ex50pAS counts
+        ### Select main mtx file to use 
         selected_mtx = purrr::map2(cell_nuclei, ic_id, ~ {
-          if (.x == "cell") {
+          if (.x == "cell" && .y %in% names(mtx_gene_list)) {
             base::message(paste("Selected mtx_gene for ic_id:", .y))
             mtx_gene_list[[.y]]
-          } else {
-            base::message(paste("Selected mtx_genefull_50 for ic_id:", .y))
+          } else if (.y %in% base::names(mtx_genefull_50_list)) {
+            base::message(base::paste("Selected mtx_genefull_50 for ic_id:", .y))
             mtx_genefull_50_list[[.y]]
+          } else {
+            stop(base::message(base::paste("No valid matrix found for ic_id:", .y)))
           }
-        })
-        # Identify empty droplets
-        barcodes = purrr::map(selected_mtx, remove_empty_droplets),
-        # Quality control per sample
-        quality_met = furrr::future_pmap(list(selected_mtx, barcodes, mtx_gene_list, mtx_genefull_list),
+        }),
+        rna_count = rna_count,
+        ### Extract non empty droplets
+        selected_mtx = purrr::map(selected_mtx, ~.x[, BiocGenerics::colnames(.x) %in% not_empty_barcodes]),
+        ### Quality control metrics 
+        quality_met = purrr::pmap(list(selected_mtx, mtx_gene_list, mtx_genefull_list),
                                   ~ quality_metrics(
                                     mtx = ..1,
-                                    barcodes = ..2[["not_empty"]],
                                     mitogenes = genes[["mito_genes"]],
                                     ribogenes = genes[["ribo_genes"]],
                                     pcgenes = genes[["protein_genes"]],
-                                    mtx_gene = ..3,
-                                    mtx_genefull = ..4
-                                  ))) 
-
+                                    mtx_gene = ..2,
+                                    mtx_genefull = ..3
+                                  ))) |> 
+      dplyr::select(-selected_mtx) |> 
+      dplyr::relocate(rna_count, quality_met, .after = library_prep)
     
-  } else if (library_prep %in% plate_based) {
+    ### Save quality control metrics 
+    results <- results |> 
+      tidyr::unnest(quality_met)
+    
+    
+    vroom::vroom_write(results, base::paste0(here::here("islet_cartography_scrna/data/quality_control/first_pass/quality_metrics/"),
+                                             study_name,
+                                             "_quality_metrics.csv"),
+                       delim = ",", col_names = TRUE)
+    
+    
+  } else if (base::as.character(platform) == "plate_barcode") {
+    base::message("Method is plate based with barcode")
+    
+    ## Plate-based barcode ----
+    results <- study_metadata %>%
+      dplyr::mutate(
+        ### Select main mtx file to use 
+        selected_mtx = purrr::map2(cell_nuclei, ic_id, ~ {
+          if (.x == "cell" && .y %in% names(mtx_gene_list)) {
+            base::message(paste("Selected mtx_gene for ic_id:", .y))
+            mtx_gene_list[[.y]]
+          } else if (.y %in% base::names(mtx_genefull_50_list)) {
+            base::message(base::paste("Selected mtx_genefull_50 for ic_id:", .y))
+            mtx_genefull_50_list[[.y]]
+          } else {
+            stop(base::message(base::paste("No valid matrix found for ic_id:", .y)))
+          }
+        }),
+        rna_count = rna_count,
+        ### Quality control metrics 
+        quality_met = purrr::pmap(list(selected_mtx, mtx_gene_list, mtx_genefull_list),
+                                  ~ quality_metrics(
+                                    mtx = ..1,
+                                    mitogenes = genes[["mito_genes"]],
+                                    ribogenes = genes[["ribo_genes"]],
+                                    pcgenes = genes[["protein_genes"]],
+                                    mtx_gene = ..2,
+                                    mtx_genefull = ..3
+                                  ))) |> 
+      dplyr::select(-selected_mtx) |> 
+      dplyr::relocate(rna_count, quality_met, .after = library_prep)
+    
+    ### Save quality control metrics 
+    results <- results |> 
+      tidyr::unnest(quality_met)
+    
+    vroom::vroom_write(results, base::paste0(here::here("islet_cartography_scrna/data/quality_control/first_pass/quality_metrics/"),
+                                             study_name,
+                                             "_quality_metrics.csv"),
+                       delim = ",", col_names = TRUE)
+    
+  } else if (base::as.character(platform) == "plate") {
     base::message("Method is plate based")
-    # Load all samples into a single matrix
-    mtx_gene <- read_mtx(path, "Gene")
-    mtx_genefull <- read_mtx(path, "GeneFull")
     
-    mtx_genefull_50 <- NULL
-    if ("nuclei" %in% study_metadata$cell_nuclei) {
-      base::message("Nuclei samples, loading GeneFull_Ex50pAS")
-      mtx_genefull_50 <- read_mtx(path, "GeneFull_50")
+    ## Plate-based ----
+    
+    ## Combine the matrices column-wise into a single large sparse matrix 
+    mtx_gene <- base::do.call(base::cbind, mtx_gene_list)
+    mtx_genefull <- base::do.call(base::cbind, mtx_genefull_list)
+    
+    if (!is.null(mtx_genefull_50_list)) {
+      mtx_genefull_50 <- base::do.call(base::cbind, mtx_genefull_50_list) 
     }
     
-    # Use GeneFull_50 for QC if nuclei, otherwise Gene
-    selected_mtx <- if ("nuclei" %in% study_metadata$cell_nuclei) mtx_genefull_50 else mtx_gene
+    study_metadata <- study_metadata |> 
+      dplyr::mutate(barcode = ic_id,
+                    rna_count = rna_count)
     
-    # No barcode filtering for plate-based
-    results <- list(study_name = quality_metrics(
-      mtx = selected_mtx,
-      barcodes = colnames(selected_mtx),
-      mitogenes = genes[["mito_genes"]],
-      ribogenes = genes[["ribo_genes"]],
-      pcgenes = genes[["protein_genes"]],
-      mtx_gene = mtx_gene,
-      mtx_genefull = mtx_genefull
-    ))
+    # Initialize empty lists for quality metrics
+    quality_met_nuclei <- NULL
+    quality_met_cells <- NULL
+    
+    # Separate cells and nuclei
+    nuclei_metadata <- study_metadata |> dplyr::filter(cell_nuclei == "nuclei")
+    cell_metadata <- study_metadata |> dplyr::filter(cell_nuclei == "cell")
+    
+    # Calculate QC metrics separately
+    if (nrow(nuclei_metadata) > 0) {
+      base::message("Processing QC for nuclei...")
+      quality_met_nuclei <- quality_metrics(
+        mtx = mtx_genefull_50,
+        mitogenes = genes[["mito_genes"]],
+        ribogenes = genes[["ribo_genes"]],
+        pcgenes = genes[["protein_genes"]],
+        mtx_gene = mtx_gene,
+        mtx_genefull = mtx_genefull
+      )
+    }
+    
+    if (nrow(cell_metadata) > 0) {
+      base::message("Processing QC for cells...")
+      quality_met_cells <- quality_metrics(
+        mtx = mtx_gene,
+        mitogenes = genes[["mito_genes"]],
+        ribogenes = genes[["ribo_genes"]],
+        pcgenes = genes[["protein_genes"]],
+        mtx_gene = mtx_gene,
+        mtx_genefull = mtx_genefull
+      )
+    }
+    
+    # Combine results
+    # Check if both dataframes exist, and merge them only if both are available
+    if (!is.null(quality_met_nuclei) & !is.null(quality_met_cells)) {
+      quality_met <- dplyr::bind_rows(quality_met_nuclei, quality_met_cells)
+    } else if (!is.null(quality_met_nuclei)) {
+      quality_met <- quality_met_nuclei
+    } else if (!is.null(quality_met_cells)) {
+      quality_met <- quality_met_cells
+    } else {
+      stop("No quality metrics calculated for either nuclei or cells.")
+    }
+    
+    ## Merge results
+    results <- dplyr::full_join(x = study_metadata, y = quality_met, by = "barcode") |> 
+      dplyr::relocate(rna_count, barcode,
+                      logUMIs,
+                      logFeatures,
+                      mitochondrial_fraction,
+                      ribosomal_fraction,
+                      coding_fraction, 
+                      contrast_fraction, 
+                      complexity, .after = library_prep)
+    
+    ## Save CSV  
+    vroom::vroom_write(
+      results,
+      base::paste0(here::here("islet_cartography_scrna/data/quality_control/first_pass/quality_metrics/"),
+                   study_name,
+                   "_quality_metrics.csv"),
+      delim = ",",
+      col_names = TRUE)
+    
   } else {
     stop("Unknown library preparation type")
   }
   
-  return(results)
+  return(NULL)
 }
-
 
 
 read_gtf_parallel <- function(file, max_cores = NULL, chunk_size = 10, max_size = 2 * 1024^3) {
@@ -532,4 +787,136 @@ read_gtf_parallel <- function(file, max_cores = NULL, chunk_size = 10, max_size 
   
   return(messy)
 }
+
+
+
+# plotting functions ------------------------------------------------------
+my_theme <- function() {
+  ggplot2::theme_classic() +
+    ggplot2::theme(strip.background = element_blank(),
+                   plot.title = element_text(size = 8, hjust = 0.5),
+                   axis.title = element_text(size = 7),
+                   axis.text = element_text(size = 6, color = "black"),
+                   axis.ticks = element_line(color = "black"),
+                   legend.text = element_text(size = 4), 
+                   legend.title = element_text(size = 4),
+                   panel.background = element_rect(fill='transparent'),
+                   plot.background = element_rect(fill='transparent', color=NA), 
+                   legend.background = element_rect(fill='transparent', color = NA), 
+                   legend.box.background = element_rect(fill='transparent', color = NA))
+}
+
+plot_rank <- function(rank, threshold, title, non_empty){
+  p <- rank |> 
+    dplyr::mutate(not_empty = dplyr::case_when(barcode %in% non_empty$not_empty ~ "Not empty",
+                                               .default = "Empty"),
+                  not_empty = factor(not_empty, levels = c("Not empty", "Empty"))) |> 
+    ggplot2::ggplot(aes(x = rank, y = counts, color = not_empty)) +
+    ggrastr::geom_point_rast(size = 0.1, shape = 20, raster.dpi = 500) +
+    ggplot2::scale_color_manual(values = c("Not empty" = "black", "Empty" = "#D3D3D3")) +
+    ggplot2::scale_x_log10(breaks = scales::trans_breaks("log10", function(x) 10^x),
+                           labels = scales::trans_format("log10", scales::math_format(10^.x))) +
+    ggplot2::scale_y_log10(breaks = scales::trans_breaks("log10", function(x) 10^x),
+                           labels = scales::trans_format("log10", scales::math_format(10^.x))) +
+    ggplot2::labs(x = "Log Rank",
+                  y = "Log UMIs", 
+                  color = "Droplet",
+                  linetype = "Lower threshold",
+                  title = title) +
+    ggplot2::geom_hline(aes(yintercept = threshold$automatic, linetype = "Automatic"), color = "red") +
+    ggplot2::scale_linetype_manual(values = c("Automatic" = 3, "Manual" = 5)) +
+    my_theme() +
+    ggplot2::theme(aspect.ratio=1,
+                   legend.position = "inside",
+                   legend.position.inside =  c(0.2, 0.2),
+                   legend.key.size = unit(0.1, "inch"),
+                   legend.spacing.y = unit(0, "inch"),
+                   legend.margin = margin(0, 0, 0, 0),
+                   legend.text = element_text(margin = margin(l = 0)),
+                   legend.title = element_blank())
   
+  if (!is.null(threshold$manual)) {
+   p <- p +  ggplot2::geom_hline(aes(yintercept = threshold$manual, linetype = "Manual"), color = "blue")
+  }
+  
+  return(p)
+}
+
+plot_rank_line <- function(rank, title, failed){
+  p <- rank |> 
+    dplyr::mutate(Passed = dplyr::case_when(name %in% failed_samples ~ "Failed",
+                                            .default = "Passed")) |> 
+    ggplot2::ggplot(aes(x = rank, y = counts, group = name, color = Passed)) +
+    ggplot2::geom_line() +
+    ggplot2::scale_color_manual(values= c("Passed" = "black", "Failed" = "red")) +
+    ggplot2::scale_x_log10(breaks = scales::trans_breaks("log10", function(x) 10^x),
+                           labels = scales::trans_format("log10", scales::math_format(10^.x))) +
+    ggplot2::scale_y_log10(breaks = scales::trans_breaks("log10", function(x) 10^x),
+                           labels = scales::trans_format("log10", scales::math_format(10^.x))) +
+    ggplot2::labs(x = "Log Rank",
+                  y = "Log UMIs", 
+                  title = title) +
+    my_theme() +
+    ggplot2::theme(aspect.ratio=1,
+                   legend.position = "inside",
+                   legend.position.inside =  c(0.2, 0.2),
+                   legend.key.size = unit(0.1, "inch"),
+                   legend.spacing.y = unit(0, "inch"),
+                   legend.margin = margin(0, 0, 0, 0),
+                   legend.text = element_text(margin = margin(l = 0)),
+                   legend.title = element_blank())
+  
+  return(p)
+}
+
+plot_hist_qc <- function(.x, .y){
+  ggplot2::ggplot(data = tibble::tibble(value = .x), ggplot2::aes(x = value)) +
+    ggplot2::geom_histogram(bins = 100, fill = "black") +
+    ggplot2::labs(title = dplyr::case_when(
+      .y == "logUMIs" ~ "Number of unique transcripts",
+      .y == "logFeatures" ~ "Number of detected features",
+      .y == "mitochondrial_fraction" ~ "Mitochondrial fraction",
+      .y == "ribosomal_fraction" ~ "Ribosomal fraction",
+      .y == "coding_fraction" ~ "Protein coding fraction",
+      .y == "contrast_fraction" ~ "Contrast fraction",
+      .y == "complexity" ~ "Library complexity",
+      TRUE ~ "value"), 
+      x = dplyr::case_when(
+        .y == "logUMIs" ~ "LogUMIs",
+        .y == "logFeatures" ~ "LogFeatures",
+        .y == "mitochondrial_fraction" ~ "% of counts in mitochondrial genes",
+        .y == "ribosomal_fraction" ~ "% of counts in ribosomal genes",
+        .y == "coding_fraction" ~ "% of counts in protein coding genes",
+        .y == "contrast_fraction" ~ "exon / exon+intron counts",
+        .y == "complexity" ~ "LogFeatures/LogUMI",
+        TRUE ~ "value"), 
+      y = "Frequency") +
+    my_theme() +
+    ggplot2::theme(aspect.ratio=1)
+}
+
+plot_hist_star <- function(.x, .y){
+  ggplot2::ggplot(data = tibble::tibble(value = .x), ggplot2::aes(x = value)) +
+    ggplot2::geom_histogram(bins = 100, fill = "black") +
+    ggplot2::labs(title = dplyr::case_when(
+      .y == "logUMIs" ~ "Number of unique transcripts",
+      .y == "logFeatures" ~ "Number of detected features",
+      .y == "mitochondrial_fraction" ~ "Mitochondrial fraction",
+      .y == "ribosomal_fraction" ~ "Ribosomal fraction",
+      .y == "coding_fraction" ~ "Protein coding fraction",
+      .y == "contrast_fraction" ~ "Contrast fraction",
+      .y == "complexity" ~ "Library complexity",
+      TRUE ~ "value"), 
+      x = dplyr::case_when(
+        .y == "logUMIs" ~ "LogUMIs",
+        .y == "logFeatures" ~ "LogFeatures",
+        .y == "mitochondrial_fraction" ~ "% of counts in mitochondrial genes",
+        .y == "ribosomal_fraction" ~ "% of counts in ribosomal genes",
+        .y == "coding_fraction" ~ "% of counts in protein coding genes",
+        .y == "contrast_fraction" ~ "exon / exon+intron counts",
+        .y == "complexity" ~ "LogFeatures/LogUMI",
+        TRUE ~ "value"), 
+      y = "Frequency") +
+    my_theme() +
+    ggplot2::theme(aspect.ratio=1)
+}

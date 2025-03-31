@@ -585,7 +585,7 @@ l_sub_1 <-  readxl::read_xlsx(here::here("islet_cartography_scrna/data_raw/meta/
                 ethnicity = dplyr::case_when(ethnicity == "AA" ~ "african american",
                                              ethnicity == "W" ~ "white",
                                              ethnicity == "H" ~ "hispanic"),
-                library_prep = "smart_seq") |> 
+                library_prep = "smarter_seq") |> 
   dplyr::distinct()
 
 # info about repeated samples
@@ -733,8 +733,10 @@ motakis_meta <- motakis |>
                 -dplyr::contains("characteristics_"),
                 -dplyr::contains("supplementary"),
                 -dplyr::contains("category")) |>
+  # Remove genetically multiplexed samples, as we cant differentiat between donors
+  dplyr::filter(!base::grepl("_MS", sample)) %>% 
   dplyr::mutate(cell_nuclei = "cell",
-                library_prep = base::paste0("3p_10x_", library_prep)) |> 
+                library_prep = base::paste0("3p_10x_", base::tolower(library_prep))) |> 
   vroom::vroom_write(here::here("islet_cartography_scrna/data/metadata/Motakis.csv"), delim = ",", col_names = TRUE)
 
 purrr::map(motakis_meta, class) |> BiocGenerics::as.data.frame() |> tidyr::pivot_longer(
