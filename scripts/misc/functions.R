@@ -470,12 +470,14 @@ quality_metrics <- function(mtx, mitogenes, ribogenes, pcgenes, mtx_gene, mtx_ge
   mtx_genefull_sub <- mtx_genefull_sub[, base::match(BiocGenerics::colnames(mtx), BiocGenerics::colnames(mtx_genefull_sub))]
   
   # Internalize matrix
-  metrics <- BiocGenerics::as.data.frame(base::matrix(ncol=8, 
+  metrics <- BiocGenerics::as.data.frame(base::matrix(ncol=10, 
                                                       nrow=ncol(mtx)))
   # Set colnames
   BiocGenerics::colnames(metrics) <- c("barcode",
-                                       "logUMIs",
-                                       "logFeatures",
+                                       "nUMIs",
+                                       "nFeatures",
+                                       "lnUMIs",
+                                       "lnFeatures",
                                        "mitochondrial_fraction",
                                        "ribosomal_fraction",
                                        "coding_fraction", 
@@ -485,13 +487,13 @@ quality_metrics <- function(mtx, mitogenes, ribogenes, pcgenes, mtx_gene, mtx_ge
   metrics[,1] <- BiocGenerics::colnames(mtx)
   metrics[,2] <- Matrix::colSums(mtx)
   metrics[,3] <- Matrix::colSums(mtx > 0)
-  metrics[,4] <- Matrix::colSums(mtx[ BiocGenerics::rownames(mtx) %in% mitogenes,]) / metrics[,2]
-  metrics[,5] <- Matrix::colSums(mtx[ BiocGenerics::rownames(mtx) %in% ribogenes,]) / metrics[,2]
-  metrics[,6] <- Matrix::colSums(mtx[ BiocGenerics::rownames(mtx) %in% pcgenes,]) / metrics[,2]
-  metrics[,7] <- Matrix::colSums(mtx_gene_sub) / Matrix::colSums(mtx_genefull_sub)
-  metrics[,8] <- metrics[,3] / metrics[,2]
-  metrics[,2] <- base::log(metrics[,2])
-  metrics[,3] <- base::log(metrics[,3])
+  metrics[,4] <- base::log(metrics[,2])
+  metrics[,5] <- base::log(metrics[,3])
+  metrics[,6] <- Matrix::colSums(mtx[ BiocGenerics::rownames(mtx) %in% mitogenes,]) / metrics[,2]
+  metrics[,7] <- Matrix::colSums(mtx[ BiocGenerics::rownames(mtx) %in% ribogenes,]) / metrics[,2]
+  metrics[,8] <- Matrix::colSums(mtx[ BiocGenerics::rownames(mtx) %in% pcgenes,]) / metrics[,2]
+  metrics[,9] <- Matrix::colSums(mtx_gene_sub) / Matrix::colSums(mtx_genefull_sub)
+  metrics[,10] <- metrics[,3] / metrics[,2]
   
   return(metrics)
 }
@@ -714,9 +716,13 @@ quality_metrics_per_sample <- function(path, study_metadata, genes, study_name, 
     
     ## Merge results
     results <- dplyr::full_join(x = study_metadata, y = quality_met, by = "barcode") |> 
-      dplyr::relocate(rna_count, barcode,
-                      logUMIs,
-                      logFeatures,
+      dplyr::rename(nCounts = nUMIs,
+                    lnCounts = lnUMIs) |> 
+      dplyr::relocate(rna_count, 
+                      barcode,
+                      nCounts,
+                      lnCounts,
+                      lnFeatures,
                       mitochondrial_fraction,
                       ribosomal_fraction,
                       coding_fraction, 
@@ -873,8 +879,9 @@ plot_hist_qc <- function(.x, .y){
   ggplot2::ggplot(data = tibble::tibble(value = .x), ggplot2::aes(x = value)) +
     ggplot2::geom_histogram(bins = 100, fill = "black") +
     ggplot2::labs(title = dplyr::case_when(
-      .y == "logUMIs" ~ "Number of unique transcripts",
-      .y == "logFeatures" ~ "Number of detected features",
+      .y == "nUMIs" ~ "Number of unique transcripts",
+      .y == "nCounts" ~ "Number of counts",
+      .y == "nFeatures" ~ "Number of detected features",
       .y == "mitochondrial_fraction" ~ "Mitochondrial fraction",
       .y == "ribosomal_fraction" ~ "Ribosomal fraction",
       .y == "coding_fraction" ~ "Protein coding fraction",
@@ -882,41 +889,170 @@ plot_hist_qc <- function(.x, .y){
       .y == "complexity" ~ "Library complexity",
       TRUE ~ "value"), 
       x = dplyr::case_when(
-        .y == "logUMIs" ~ "LogUMIs",
-        .y == "logFeatures" ~ "LogFeatures",
+        .y == "nUMIs" ~ "n(UMIs)",
+        .y == "nCounts" ~ "n(Counts)",
+        .y == "nFeatures" ~ "n(Features)",
         .y == "mitochondrial_fraction" ~ "% of counts in mitochondrial genes",
         .y == "ribosomal_fraction" ~ "% of counts in ribosomal genes",
         .y == "coding_fraction" ~ "% of counts in protein coding genes",
         .y == "contrast_fraction" ~ "exon / exon+intron counts",
-        .y == "complexity" ~ "LogFeatures/LogUMI",
+        .y == "complexity" ~ "LnFeatures/Ln(Count) or ln(UMI)",
         TRUE ~ "value"), 
       y = "Frequency") +
+    ggplot2::scale_x_continuous(labels = function(x) ifelse(x == 0, x, ifelse(abs(x) >= 10000 | abs(x) < 0.0001, scales::scientific(x, digits = 1), x)),
+                                breaks = scales::pretty_breaks(n = 5)) +
+    scale_y_continuous(breaks = scales::pretty_breaks(n = 5)) +
     my_theme() +
     ggplot2::theme(aspect.ratio=1)
 }
+
+plot_hist_qc_thres <- function(.x, .y, lower, upper, subtitle = NULL){
+  ggplot2::ggplot(data = tibble::tibble(value = .x), ggplot2::aes(x = value)) +
+    ggplot2::geom_histogram(bins = 100, fill = "black") +
+    ggplot2::labs(subtitle = subtitle, 
+                  title = dplyr::case_when(
+      .y == "nUMIs" ~ "Number of unique transcripts",
+      .y == "nCounts" ~ "Number of counts",
+      .y == "nFeatures" ~ "Number of detected features",
+      .y == "mitochondrial_fraction" ~ "Mitochondrial fraction",
+      .y == "ribosomal_fraction" ~ "Ribosomal fraction",
+      .y == "coding_fraction" ~ "Protein coding fraction",
+      .y == "contrast_fraction" ~ "Contrast fraction",
+      .y == "complexity" ~ "Library complexity",
+      .y == "Uniquely_mapped_reads_%" ~ "% of uniquely mapped reads",
+      .y == "Unmapped_reads_%" ~ "% of unmapped reads",
+      TRUE ~ "value"), 
+      x = dplyr::case_when(
+        .y == "nUMIs" ~ "n(UMIs)",
+        .y == "nCounts" ~ "n(Counts)",
+        .y == "nFeatures" ~ "n(Features)",
+        .y == "mitochondrial_fraction" ~ "% of counts in mitochondrial genes",
+        .y == "ribosomal_fraction" ~ "% of counts in ribosomal genes",
+        .y == "coding_fraction" ~ "% of counts in protein coding genes",
+        .y == "contrast_fraction" ~ "exon / exon+intron counts",
+        .y == "complexity" ~ "LnFeatures/Ln(Count) or ln(UMI)",
+        .y == "Uniquely_mapped_reads_%" ~ "% of uniquely mapped reads",
+        .y == "Unmapped_reads_%" ~ "% of unmapped reads",
+        TRUE ~ "value"), 
+      y = "Frequency") +
+    ggplot2::scale_x_continuous(labels = function(x) ifelse(x == 0, x, ifelse(abs(x) >= 10000 | abs(x) < 0.0001, scales::scientific(x, digits = 1), x)),
+                                breaks = scales::pretty_breaks(n = 5)) +
+    ggplot2::scale_y_continuous(breaks = scales::pretty_breaks(n = 5)) +
+    ggplot2::geom_vline(xintercept = lower, color = "red") +
+    ggplot2::geom_vline(xintercept = upper, color = "red") +
+    my_theme() +
+    ggplot2::theme(aspect.ratio=1)
+
+}
+
+# Here are the groups I used to organize the metrics:
+#   
+#   Read Counts and Percentages:
+#   
+#   Number of input reads
+# % of uniquely mapped reads
+# % of chimeric reads
+# % of reads mapped to multiple loci
+# % of reads mapped to too many loci
+# % of reads unmapped (other)
+# % of reads unmapped (too many mismatches)
+# % of reads unmapped (too short)
+# Number of uniquely mapped reads
+# Read Lengths:
+#   
+#   Average input read length
+# Average mapped read length
+# Deletion and Insertion Metrics:
+#   
+#   Average deletion length
+# Deletion rate per base (%)
+# Average insertion length
+# Insertion rate per base (%)
+# Mismatch Metrics:
+#   
+#   Mismatch rate per base (%)
+# Gene Read Counts:
+#   
+#   Number of reads (gene sum)
+# Number of reads (gene full sum)
+# Number of chimeric reads
+# Splice Metrics:
+#   
+#   Number of splices (AT/AC)
+# Number of splices (Annotated)
+# Number of splices (GC/AG)
+# Number of splices (GT/AG)
+# Number of splices (Non-canonical)
+# Total number of splices
 
 plot_hist_star <- function(.x, .y){
   ggplot2::ggplot(data = tibble::tibble(value = .x), ggplot2::aes(x = value)) +
     ggplot2::geom_histogram(bins = 100, fill = "black") +
     ggplot2::labs(title = dplyr::case_when(
-      .y == "logUMIs" ~ "Number of unique transcripts",
-      .y == "logFeatures" ~ "Number of detected features",
-      .y == "mitochondrial_fraction" ~ "Mitochondrial fraction",
-      .y == "ribosomal_fraction" ~ "Ribosomal fraction",
-      .y == "coding_fraction" ~ "Protein coding fraction",
-      .y == "contrast_fraction" ~ "Contrast fraction",
-      .y == "complexity" ~ "Library complexity",
+      .y == "Number_of_input_reads" ~ "Number of input reads",
+      .y == "Uniquely_mapped_reads_%" ~ "% of uniquely mapped reads",
+      .y == "Unmapped_reads_%" ~ "% of unmapped reads",
+      .y == "Average_input_read_length" ~ "Average input read length",
+      .y == "Average_mapped_length" ~ "Average mapped read length",
+      .y == "%_of_chimeric_reads" ~ "% of chimeric reads",
+      .y == "%_of_reads_mapped_to_multiple_loci" ~ "% of reads mapped to multiple loci",
+      .y == "%_of_reads_mapped_to_too_many_loci" ~ "% of reads mapped to too many loci",
+      .y == "%_of_reads_unmapped_other" ~ "% of reads unmapped (other)",
+      .y == "%_of_reads_unmapped_too_many_mismatches" ~ "% of reads unmapped (too many mismatches)",
+      .y == "%_of_reads_unmapped_too_short" ~ "% of reads unmapped (too short)",
+      .y == "Deletion_average_length" ~ "Average deletion length",
+      .y == "Deletion_rate_per_base_%" ~ "Deletion rate per base (%)",
+      .y == "Insertion_average_length" ~ "Average insertion length",
+      .y == "Insertion_rate_per_base_%" ~ "Insertion rate per base (%)",
+      .y == "Mismatch_rate_per_base__%" ~ "Mismatch rate per base (%)",
+      .y == "Number_of_chimeric_reads" ~ "Number of chimeric reads",
+      .y == "Number_of_reads_mapped_to_multiple_loci" ~ "Number of reads mapped to multiple loci",
+      .y == "Number_of_reads_mapped_to_too_many_loci" ~ "Number of reads mapped to too many loci",
+      .y == "Number_of_reads_unmapped_other" ~ "Number of reads unmapped (other)",
+      .y == "Number_of_reads_unmapped_too_many_mismatches" ~ "Number of reads unmapped (too many mismatches)",
+      .y == "Number_of_reads_unmapped_too_short" ~ "Number of reads unmapped (too short)",
+      .y == "Number_of_splices_AT/AC" ~ "Number of splices (AT/AC)",
+      .y == "Number_of_splices_Annotated_(sjdb)" ~ "Number of splices (Annotated)",
+      .y == "Number_of_splices_GC/AG" ~ "Number of splices (GC/AG)",
+      .y == "Number_of_splices_GT/AG" ~ "Number of splices (GT/AG)",
+      .y == "Number_of_splices_Non-canonical" ~ "Number of splices (Non-canonical)",
+      .y == "Number_of_splices_Total" ~ "Total number of splices",
+      .y == "Uniquely_mapped_reads_number" ~ "Number of uniquely mapped reads",
       TRUE ~ "value"), 
       x = dplyr::case_when(
-        .y == "logUMIs" ~ "LogUMIs",
-        .y == "logFeatures" ~ "LogFeatures",
-        .y == "mitochondrial_fraction" ~ "% of counts in mitochondrial genes",
-        .y == "ribosomal_fraction" ~ "% of counts in ribosomal genes",
-        .y == "coding_fraction" ~ "% of counts in protein coding genes",
-        .y == "contrast_fraction" ~ "exon / exon+intron counts",
-        .y == "complexity" ~ "LogFeatures/LogUMI",
-        TRUE ~ "value"), 
+        .y == "Number_of_input_reads" ~ "Number of input reads",
+        .y == "Uniquely_mapped_reads_%" ~ "% of uniquely mapped reads",
+        .y == "Unmapped_reads_%" ~ "% of unmapped reads",
+        .y == "Average_input_read_length" ~ "Average input read length",
+        .y == "Average_mapped_length" ~ "Average mapped read length",
+        .y == "%_of_chimeric_reads" ~ "% of chimeric reads",
+        .y == "%_of_reads_mapped_to_multiple_loci" ~ "% of reads mapped to multiple loci",
+        .y == "%_of_reads_mapped_to_too_many_loci" ~ "% of reads mapped to too many loci",
+        .y == "%_of_reads_unmapped_other" ~ "% of reads unmapped (other)",
+        .y == "%_of_reads_unmapped_too_many_mismatches" ~ "% of reads unmapped (too many mismatches)",
+        .y == "%_of_reads_unmapped_too_short" ~ "% of reads unmapped (too short)",
+        .y == "Deletion_average_length" ~ "Average deletion length",
+        .y == "Deletion_rate_per_base_%" ~ "Deletion rate per base (%)",
+        .y == "Insertion_average_length" ~ "Average insertion length",
+        .y == "Insertion_rate_per_base_%" ~ "Insertion rate per base (%)",
+        .y == "Mismatch_rate_per_base__%" ~ "Mismatch rate per base (%)",
+        .y == "Number_of_chimeric_reads" ~ "Number of chimeric reads",
+        .y == "Number_of_reads_mapped_to_multiple_loci" ~ "Number of reads mapped to multiple loci",
+        .y == "Number_of_reads_mapped_to_too_many_loci" ~ "Number of reads mapped to too many loci",
+        .y == "Number_of_reads_unmapped_other" ~ "Number of reads unmapped (other)",
+        .y == "Number_of_reads_unmapped_too_many_mismatches" ~ "Number of reads unmapped (too many mismatches)",
+        .y == "Number_of_reads_unmapped_too_short" ~ "Number of reads unmapped (too short)",
+        .y == "Number_of_splices_AT/AC" ~ "Number of splices (AT/AC)",
+        .y == "Number_of_splices_Annotated_(sjdb)" ~ "Number of splices (Annotated)",
+        .y == "Number_of_splices_GC/AG" ~ "Number of splices (GC/AG)",
+        .y == "Number_of_splices_GT/AG" ~ "Number of splices (GT/AG)",
+        .y == "Number_of_splices_Non-canonical" ~ "Number of splices (Non-canonical)",
+        .y == "Number_of_splices_Total" ~ "Total number of splices",
+        .y == "Uniquely_mapped_reads_number" ~ "Number of uniquely mapped reads"), 
       y = "Frequency") +
+    ggplot2::scale_x_continuous(labels = function(x) ifelse(x == 0, x, ifelse(abs(x) >= 10000 | abs(x) < 0.0001, scales::scientific(x, digits = 1), x)),
+                                breaks = scales::pretty_breaks(n = 5)) +
+    scale_y_continuous(breaks = scales::pretty_breaks(n = 5)) +
     my_theme() +
     ggplot2::theme(aspect.ratio=1)
 }

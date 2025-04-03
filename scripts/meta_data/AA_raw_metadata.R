@@ -585,7 +585,7 @@ l_sub_1 <-  readxl::read_xlsx(here::here("islet_cartography_scrna/data_raw/meta/
                 ethnicity = dplyr::case_when(ethnicity == "AA" ~ "african american",
                                              ethnicity == "W" ~ "white",
                                              ethnicity == "H" ~ "hispanic"),
-                library_prep = "smarter_seq") |> 
+                library_prep = "smart_seq") |> 
   dplyr::distinct()
 
 # info about repeated samples

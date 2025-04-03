@@ -68,10 +68,24 @@ df_combined_star_list |>
 
 # Combine with overview to get study name and method used
 
-# Add IC id
+# As the same donors are repeated in the HPAP dataset, we will breifly combine them 
+# for generation of ic_ids and then split them again
+
 id_list <- df_combined_star_list |> 
-  purrr::modify_depth(1, ~ dplyr::left_join(., y = study_number) |> 
-                        dplyr::group_by(donor) |> 
+  purrr::modify_depth(1, ~ dplyr::left_join(., y = study_number))
+
+hpap_combined <- dplyr::bind_rows(list(id_list[["HPAP_10x"]], 
+                                  id_list[["HPAP_fluidigm"]], 
+                                  id_list[["HPAP_patch_22"]],
+                                  id_list[["HPAP_patch_23"]])) 
+id_list[["HPAP_10x"]] <- NULL
+id_list[["HPAP_fluidigm"]] <- NULL
+id_list[["HPAP_patch_22"]] <- NULL
+id_list[["HPAP_patch_23"]] <- NULL
+
+id_list[["HPAP"]] <- hpap_combined
+
+id_list <- id_list |> purrr::modify_depth(1, ~ dplyr::group_by(., donor) |> 
                         dplyr::mutate("ic_id_donor" = dplyr::cur_group_id()) |> 
                         dplyr::ungroup()  |> 
                         dplyr::group_by(donor, sample) |> 
@@ -79,6 +93,10 @@ id_list <- df_combined_star_list |>
                         dplyr::ungroup()  |> 
                         dplyr::mutate(ic_id = base::paste0("ic", "_", study, "_", ic_id_donor, "_", ic_id_sample)) |> 
                         dplyr::relocate(ic_id, ic_id_study = study, ic_id_donor, ic_id_sample))
+
+split_dfs <- id_list[["HPAP"]] |> (\(df) base::split(df, factor(df$name)))()
+id_list[["HPAP"]] <- NULL
+id_list <- BiocGenerics::append(id_list, split_dfs)
 
 # test that study ids are correctly assigned
 
@@ -97,4 +115,3 @@ base::table(study %in% id)
 
 # Save --------------------------------------------------------------------
 qs2::qs_save(id_list, here::here("islet_cartography_scrna/data/metadata/id_list.qs2"))
-

@@ -32,7 +32,6 @@ paths <- base::paste0("/work/scRNAseq/", base::names(star_quality), "/Preprocess
 base::names(paths) <- purrr::map_chr(paths, ~stringr::str_extract(string = .x, pattern = "(?<=scRNAseq/)[^/]+"))
 
 # quality control metrics -------------------------------------------------
-
 purrr::imap(paths, function(path, name){
   base::message("Generating QC metrics for: ", name)
   quality_metrics_per_sample(path = path,

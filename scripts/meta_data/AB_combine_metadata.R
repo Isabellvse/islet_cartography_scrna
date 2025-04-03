@@ -29,5 +29,6 @@ df_loaded <- purrr::map2(files_csv, files_class, ~load_data_with_classes(data_fi
 split_dfs <- df_loaded[["HPAP"]] |> (\(df) base::split(df, factor(df$name)))()
 df_loaded[["HPAP"]] <- NULL
 df_loaded <- BiocGenerics::append(df_loaded, split_dfs)
+
 # Save --------------------------------------------------------------------
 qs2::qs_save(df_loaded, here::here("islet_cartography_scrna/data/metadata/meta_list_1.qs2"))

@@ -4,5 +4,61 @@ plate_based <- c("smart_seq", "smart_seq2", "smart_seq_ht_ifc", "smarter_seq")
 plate_based_bc <- c("sort_seq|cel_seq2") # plate based with barcode
 
 # quality control metrics -------------------------------------------------
-qc_metrics <- c("logUMIs", "logFeatures", "mitochondrial_fraction", "ribosomal_fraction", "coding_fraction", "contrast_fraction", "complexity")
+qc_metrics_droplet <- c("nUMIs", "nFeatures", "mitochondrial_fraction", "ribosomal_fraction", "coding_fraction", "contrast_fraction", "complexity")
+qc_metrics_plate <- c("nCounts", "nFeatures", "mitochondrial_fraction", "ribosomal_fraction", "coding_fraction", "contrast_fraction", "complexity")
 
+qc_thres_droplet <- c("threshold_nUMIs_upper", 
+                      "threshold_nUMIs_lower", 
+                      "threshold_nFeatures_lower", 
+                      "threshold_mitochondrial_fraction_upper", 
+                      "threshold_ribosomal_fraction_upper", 
+                      "threshold_coding_fraction_lower", 
+                      "threshold_contrast_fraction_upper", 
+                      "threshold_complexity_lower")
+
+qc_thres_plate <- c("threshold_Uniquely_mapped_reads_%_lower", 
+                    "threshold_Unmapped_reads_%_upper", 
+                    "threshold_nCounts_upper", 
+                    "threshold_nCounts_lower", 
+                    "threshold_nFeatures_lower", 
+                    "threshold_mitochondrial_fraction_upper", 
+                    "threshold_ribosomal_fraction_upper", 
+                    "threshold_coding_fraction_lower", 
+                    "threshold_contrast_fraction_upper", 
+                    "threshold_complexity_lower")
+
+qc_met_thres_droplet <- c("nUMIs", "nFeatures", "mitochondrial_fraction", "ribosomal_fraction", "coding_fraction", "contrast_fraction", "complexity")
+qc_met_thres_plate <- c("Uniquely_mapped_reads_%", "Unmapped_reads_%", "nCounts", "nFeatures", "mitochondrial_fraction", "ribosomal_fraction", "coding_fraction", "contrast_fraction", "complexity")
+
+
+qc_star <- c(
+  "Number_of_input_reads",
+  "Uniquely_mapped_reads_%",
+  "Unmapped_reads_%",
+  "Average_input_read_length",
+  "Average_mapped_length",
+  "%_of_chimeric_reads",
+  "%_of_reads_mapped_to_multiple_loci",
+  "%_of_reads_mapped_to_too_many_loci",
+  "%_of_reads_unmapped_other",
+  "%_of_reads_unmapped_too_many_mismatches",
+  "%_of_reads_unmapped_too_short",
+  "Deletion_average_length",
+  "Deletion_rate_per_base_%",
+  "Insertion_average_length",
+  "Insertion_rate_per_base_%",
+  "Mismatch_rate_per_base__%",
+  "Number_of_chimeric_reads",
+  "Number_of_reads_mapped_to_multiple_loci",
+  "Number_of_reads_mapped_to_too_many_loci",
+  "Number_of_reads_unmapped_other",
+  "Number_of_reads_unmapped_too_many_mismatches",
+  "Number_of_reads_unmapped_too_short",
+  "Number_of_splices_AT/AC",
+  "Number_of_splices_Annotated_(sjdb)",
+  "Number_of_splices_GC/AG",
+  "Number_of_splices_GT/AG",
+  "Number_of_splices_Non-canonical",
+  "Number_of_splices_Total",
+  "Uniquely_mapped_reads_number"
+)
