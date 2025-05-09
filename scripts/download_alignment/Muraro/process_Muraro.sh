@@ -38,14 +38,18 @@ for z in $Donors; do
         has_error=$(wc -l < failed.downloads)
         sleep 10
     done
+    
+    for i in *.sra; do
+        fasterq-dump "$i" -m 10gb -e 30 -p -S --include-technical
+    done
 
     # Run STAR
-    	STAR --genomeLoad LoadAndKeep --genomeDir $Genome --readFilesIn *R2.fq.gz *R1.fq.gz --soloType CB_UMI_Simple --soloCBwhitelist $whitelist --soloCBstart 1 --soloCBlen 8 --soloUMIstart 9 --soloUMIlen 4 --soloBarcodeReadLength 0 --soloCellFilter None --soloUMIfiltering MultiGeneUMI_CR --runThreadN 60 --outMultimapperOrder Random --outSAMmultNmax 1 --soloUMIdedup 1MM_CR --soloFeatures Gene GeneFull --outFilterScoreMin 30 --soloMultiMappers EM --soloCBmatchWLtype 1MM --readFilesCommand zcat
+    	STAR --genomeLoad LoadAndKeep --genomeDir $Genome --readFilesIn *_2.fastq *_1.fastq --soloType CB_UMI_Simple --soloCBwhitelist $whitelist --soloCBstart 1 --soloCBlen 8 --soloUMIstart 9 --soloUMIlen 4 --soloBarcodeReadLength 0 --soloCellFilter None --soloUMIfiltering - --runThreadN 20 --outMultimapperOrder Random --outSAMmultNmax 1 --soloUMIdedup Exact --soloFeatures Gene GeneFull --outFilterScoreMin 30 --soloMultiMappers EM --soloCBmatchWLtype 1MM
 
     # Cleanup: Move results to donor-specific folder
     mkdir -p "$Out/$z/"
     mv failed.downloads Solo.out Log* "$Out/$z/"
-    rm Aligned.out.sam SJ.out.tab *.fq.gz Donor Download
+    rm Aligned.out.sam SJ.out.tab Download Donor *.fastq *.sra
 done
 
 # Unload the genome from shared memory
