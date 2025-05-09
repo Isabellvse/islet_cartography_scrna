@@ -597,6 +597,9 @@ quality_metrics_per_sample <- function(path, study_metadata, genes, study_name, 
                                     mtx_gene = ..2,
                                     mtx_genefull = ..3
                                   ))) |> 
+      dplyr::rowwise() |> 
+      dplyr::mutate("Unmapped_reads_%" = sum(dplyr::c_across(tidyselect::starts_with("%_of_reads_unmapped_")), na.rm = TRUE)) %>%
+      dplyr::ungroup()|>  
       dplyr::select(-selected_mtx) |> 
       dplyr::relocate(rna_count, quality_met, .after = library_prep)
     
@@ -640,6 +643,9 @@ quality_metrics_per_sample <- function(path, study_metadata, genes, study_name, 
                                     mtx_gene = ..2,
                                     mtx_genefull = ..3
                                   ))) |> 
+      dplyr::rowwise() |> 
+      dplyr::mutate("Unmapped_reads_%" = sum(dplyr::c_across(tidyselect::starts_with("%_of_reads_unmapped_")), na.rm = TRUE)) %>%
+      dplyr::ungroup()|>  
       dplyr::select(-selected_mtx) |> 
       dplyr::relocate(rna_count, quality_met, .after = library_prep)
     
@@ -727,7 +733,10 @@ quality_metrics_per_sample <- function(path, study_metadata, genes, study_name, 
                       ribosomal_fraction,
                       coding_fraction, 
                       contrast_fraction, 
-                      complexity, .after = library_prep)
+                      complexity, .after = library_prep) |> 
+      dplyr::rowwise() |> 
+      dplyr::mutate("Unmapped_reads_%" = sum(dplyr::c_across(tidyselect::starts_with("%_of_reads_unmapped_")), na.rm = TRUE)) %>%
+      dplyr::ungroup()
     
     ## Save CSV  
     vroom::vroom_write(
@@ -804,12 +813,15 @@ my_theme <- function() {
                    axis.title = element_text(size = 7),
                    axis.text = element_text(size = 6, color = "black"),
                    axis.ticks = element_line(color = "black"),
-                   legend.text = element_text(size = 4), 
+                   legend.text = element_text(size = 6), 
                    legend.title = element_text(size = 4),
+                   plot.caption = element_text(size = 4, hjust = 0.5),
+                   plot.subtitle = element_text(size = 6, hjust = 0.5),
                    panel.background = element_rect(fill='transparent'),
                    plot.background = element_rect(fill='transparent', color=NA), 
                    legend.background = element_rect(fill='transparent', color = NA), 
                    legend.box.background = element_rect(fill='transparent', color = NA))
+    
 }
 
 plot_rank <- function(rank, threshold, title, non_empty){
@@ -875,7 +887,7 @@ plot_rank_line <- function(rank, title, failed){
   return(p)
 }
 
-plot_hist_qc <- function(.x, .y){
+plot_hist_qc <- function(.x, .y, subtitle){
   ggplot2::ggplot(data = tibble::tibble(value = .x), ggplot2::aes(x = value)) +
     ggplot2::geom_histogram(bins = 100, fill = "black") +
     ggplot2::labs(title = dplyr::case_when(
@@ -887,7 +899,8 @@ plot_hist_qc <- function(.x, .y){
       .y == "coding_fraction" ~ "Protein coding fraction",
       .y == "contrast_fraction" ~ "Contrast fraction",
       .y == "complexity" ~ "Library complexity",
-      TRUE ~ "value"), 
+      TRUE ~ "value",
+      subtitle = subtitle), 
       x = dplyr::case_when(
         .y == "nUMIs" ~ "n(UMIs)",
         .y == "nCounts" ~ "n(Counts)",
@@ -906,22 +919,24 @@ plot_hist_qc <- function(.x, .y){
     ggplot2::theme(aspect.ratio=1)
 }
 
-plot_hist_qc_thres <- function(.x, .y, lower, upper, subtitle = NULL){
+plot_hist_qc_thres <- function(.x, .y, lower, upper, subtitle = NULL, caption = NULL, .xlim = NULL){
   ggplot2::ggplot(data = tibble::tibble(value = .x), ggplot2::aes(x = value)) +
     ggplot2::geom_histogram(bins = 100, fill = "black") +
-    ggplot2::labs(subtitle = subtitle, 
-                  title = dplyr::case_when(
-      .y == "nUMIs" ~ "Number of unique transcripts",
-      .y == "nCounts" ~ "Number of counts",
-      .y == "nFeatures" ~ "Number of detected features",
-      .y == "mitochondrial_fraction" ~ "Mitochondrial fraction",
-      .y == "ribosomal_fraction" ~ "Ribosomal fraction",
-      .y == "coding_fraction" ~ "Protein coding fraction",
-      .y == "contrast_fraction" ~ "Contrast fraction",
-      .y == "complexity" ~ "Library complexity",
-      .y == "Uniquely_mapped_reads_%" ~ "% of uniquely mapped reads",
-      .y == "Unmapped_reads_%" ~ "% of unmapped reads",
-      TRUE ~ "value"), 
+    ggplot2::labs(
+      subtitle = subtitle, 
+      caption = paste(caption, "\nBlue line: Upper threshold, Red line: Lower threshold"),
+      title = dplyr::case_when(
+        .y == "nUMIs" ~ "Number of unique transcripts",
+        .y == "nCounts" ~ "Number of counts",
+        .y == "nFeatures" ~ "Number of detected features",
+        .y == "mitochondrial_fraction" ~ "Mitochondrial fraction",
+        .y == "ribosomal_fraction" ~ "Ribosomal fraction",
+        .y == "coding_fraction" ~ "Protein coding fraction",
+        .y == "contrast_fraction" ~ "Contrast fraction",
+        .y == "complexity" ~ "Library complexity",
+        .y == "Uniquely_mapped_reads_%" ~ "% of uniquely mapped reads",
+        .y == "Unmapped_reads_%" ~ "% of unmapped reads",
+        TRUE ~ "value"), 
       x = dplyr::case_when(
         .y == "nUMIs" ~ "n(UMIs)",
         .y == "nCounts" ~ "n(Counts)",
@@ -934,16 +949,59 @@ plot_hist_qc_thres <- function(.x, .y, lower, upper, subtitle = NULL){
         .y == "Uniquely_mapped_reads_%" ~ "% of uniquely mapped reads",
         .y == "Unmapped_reads_%" ~ "% of unmapped reads",
         TRUE ~ "value"), 
-      y = "Frequency") +
-    ggplot2::scale_x_continuous(labels = function(x) ifelse(x == 0, x, ifelse(abs(x) >= 10000 | abs(x) < 0.0001, scales::scientific(x, digits = 1), x)),
-                                breaks = scales::pretty_breaks(n = 5)) +
+      y = "Frequency"
+    ) +
+    ggplot2::scale_x_continuous(
+      limits = .xlim,
+      breaks = scales::pretty_breaks(n = 5)
+    ) +
     ggplot2::scale_y_continuous(breaks = scales::pretty_breaks(n = 5)) +
-    ggplot2::geom_vline(xintercept = lower, color = "red") +
-    ggplot2::geom_vline(xintercept = upper, color = "red") +
+    ggplot2::geom_vline(xintercept = lower, color = "red", linewidth = 0.1) +
+    ggplot2::geom_vline(xintercept = upper, color = "blue", linewidth = 0.1) +
     my_theme() +
-    ggplot2::theme(aspect.ratio=1)
-
+    ggplot2::theme(axis.text = element_text(size = 4, color = "black")) +
+    ggplot2::theme(aspect.ratio = 1)
 }
+
+plot_bar_sample_donor <- function(df, x = x, y = y, title = NULL, subtitle = NULL) {
+  df |>
+  ggplot2::ggplot(aes(x = x, y = y)) +
+  ggplot2::geom_bar(stat = "identity",
+                    position = position_dodge(),
+                    fill = "black") +
+    ggplot2::labs(
+      subtitle = subtitle, 
+      title = dplyr::case_when(
+        title == "nUMIs" ~ "Number of unique transcripts",
+        title == "nCounts" ~ "Number of counts",
+        title == "nFeatures" ~ "Number of detected features",
+        title == "mitochondrial_fraction" ~ "Mitochondrial fraction",
+        title == "ribosomal_fraction" ~ "Ribosomal fraction",
+        title == "coding_fraction" ~ "Protein coding fraction",
+        title == "contrast_fraction" ~ "Contrast fraction",
+        title == "complexity" ~ "Library complexity",
+        title == "Uniquely_mapped_reads_%" ~ "% of uniquely mapped reads",
+        title == "Unmapped_reads_%" ~ "% of unmapped reads",
+        TRUE ~ "value"), 
+      x = dplyr::case_when(
+        title == "nUMIs" ~ "n(UMIs)",
+        title == "nCounts" ~ "n(Counts)",
+        title == "nFeatures" ~ "n(Features)",
+        title == "mitochondrial_fraction" ~ "% of counts in mitochondrial genes",
+        title == "ribosomal_fraction" ~ "% of counts in ribosomal genes",
+        title == "coding_fraction" ~ "% of counts in protein coding genes",
+        title == "contrast_fraction" ~ "exon / exon+intron counts",
+        title == "complexity" ~ "LnFeatures/Ln(Count) or ln(UMI)",
+        title == "Uniquely_mapped_reads_%" ~ "% of uniquely mapped reads",
+        title == "Unmapped_reads_%" ~ "% of unmapped reads",
+        TRUE ~ "value"), 
+      y = "% of total barcodes"
+    ) +
+    ggplot2::scale_y_continuous(breaks = scales::pretty_breaks(n = 5)) +
+    my_theme() +
+    ggplot2::theme(axis.text = element_text(size = 4, color = "black")) +
+    ggplot2::theme(aspect.ratio = 1)
+  }
 
 # Here are the groups I used to organize the metrics:
 #   

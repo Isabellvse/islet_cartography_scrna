@@ -7,28 +7,42 @@ plate_based_bc <- c("sort_seq|cel_seq2") # plate based with barcode
 qc_metrics_droplet <- c("nUMIs", "nFeatures", "mitochondrial_fraction", "ribosomal_fraction", "coding_fraction", "contrast_fraction", "complexity")
 qc_metrics_plate <- c("nCounts", "nFeatures", "mitochondrial_fraction", "ribosomal_fraction", "coding_fraction", "contrast_fraction", "complexity")
 
-qc_thres_droplet <- c("threshold_nUMIs_upper", 
-                      "threshold_nUMIs_lower", 
-                      "threshold_nFeatures_lower", 
-                      "threshold_mitochondrial_fraction_upper", 
-                      "threshold_ribosomal_fraction_upper", 
-                      "threshold_coding_fraction_lower", 
-                      "threshold_contrast_fraction_upper", 
-                      "threshold_complexity_lower")
+qc_thres_droplet <- c(
+  "threshold_nUMIs_lower",
+  "threshold_nUMIs_upper",
+  "threshold_nFeatures_lower",
+  "threshold_nFeatures_upper",
+  "threshold_mitochondrial_fraction_lower",
+  "threshold_mitochondrial_fraction_upper",
+  "threshold_coding_fraction_lower",
+  "threshold_coding_fraction_upper",
+  "threshold_contrast_fraction_lower",
+  "threshold_contrast_fraction_upper",
+  "threshold_complexity_lower",
+  "threshold_complexity_upper"
+)
 
-qc_thres_plate <- c("threshold_Uniquely_mapped_reads_%_lower", 
-                    "threshold_Unmapped_reads_%_upper", 
-                    "threshold_nCounts_upper", 
-                    "threshold_nCounts_lower", 
-                    "threshold_nFeatures_lower", 
-                    "threshold_mitochondrial_fraction_upper", 
-                    "threshold_ribosomal_fraction_upper", 
-                    "threshold_coding_fraction_lower", 
-                    "threshold_contrast_fraction_upper", 
-                    "threshold_complexity_lower")
+qc_thres_plate <- c(
+  "threshold_Uniquely_mapped_reads_%_lower",
+  "threshold_Uniquely_mapped_reads_%_upper",
+  "threshold_Unmapped_reads_%_lower",
+  "threshold_Unmapped_reads_%_upper",
+  "threshold_nCounts_lower",
+  "threshold_nCount_upper",
+  "threshold_nFeatures_lower",
+  "threshold_nFeatures_upper",
+  "threshold_mitochondrial_fraction_lower",
+  "threshold_mitochondrial_fraction_upper",
+  "threshold_coding_fraction_lower",
+  "threshold_coding_fraction_upper",
+  "threshold_contrast_fraction_lower",
+  "threshold_contrast_fraction_upper",
+  "threshold_complexity_lower",
+  "threshold_complexity_upper"
+)
 
-qc_met_thres_droplet <- c("nUMIs", "nFeatures", "mitochondrial_fraction", "ribosomal_fraction", "coding_fraction", "contrast_fraction", "complexity")
-qc_met_thres_plate <- c("Uniquely_mapped_reads_%", "Unmapped_reads_%", "nCounts", "nFeatures", "mitochondrial_fraction", "ribosomal_fraction", "coding_fraction", "contrast_fraction", "complexity")
+qc_met_thres_droplet <- c("nUMIs", "nFeatures", "mitochondrial_fraction", "coding_fraction", "contrast_fraction", "complexity")
+qc_met_thres_plate <- c("Uniquely_mapped_reads_%", "Unmapped_reads_%", "nCounts", "nFeatures", "mitochondrial_fraction", "coding_fraction", "contrast_fraction", "complexity")
 
 
 qc_star <- c(

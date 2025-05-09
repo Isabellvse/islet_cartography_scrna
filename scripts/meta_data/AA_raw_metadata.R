@@ -260,7 +260,7 @@ enge_meta <- enge |>
          cause_of_death = dplyr::case_when(donor == "21yr_male" ~ "head_trauma",
                                     donor == "38yr_female" ~ "stroke",
                                     donor == "44yr_female" ~ "stroke",
-                                    donor == "54yr_male" ~ "anorexia",
+                                    donor == "54yr_male" ~ "anoxia",
                                     donor == "22yr_male" ~ "head_trauma"),
          donor_study = base::paste0(name, "_", donor),
          age_years = base::as.numeric(age_years),
@@ -389,7 +389,7 @@ hpap_3 <- utils::read.delim(here::here("islet_cartography_scrna/scripts/download
   dplyr::select(donor = V1, sample = V1, library_prep = V4) |>
   dplyr::mutate(dplyr::across(c("donor", "sample"), ~ base::as.character(.))) |>
   dplyr::mutate(name = "HPAP_10x",
-                library_prep = base::paste0("3p_10x_", library_prep))
+                library_prep = base::paste0("3p_10x_", library_prep)) 
 
 hpap_2 <- utils::read.delim(here::here("islet_cartography_scrna/scripts/download_alignment/HPAP_fluidigm/HPAP_fluidigm.wget"),
                      header = FALSE) |>
@@ -909,8 +909,6 @@ son_info <- son_donor_info <- base::data.frame(
 son_meta <- son |>
   dplyr::rename_with(~ snakecase::to_snake_case(.x)) |>
   dplyr::mutate(sample = stringr::str_split(title, " ", simplify = TRUE)[,1],
-                disease = dplyr::case_when(base::grepl("normal", source_name_ch_1) ~ "nd",
-                                           base::grepl("type-2 diabetes", source_name_ch_1) ~ "t2d"),
                 name = "Son",
                 islet_center = "NIH’s Integrated Islet Distribution Program (IIDP)",
                 donor = case_when(base::grepl("N01", sample) ~ "ND1",
@@ -958,6 +956,7 @@ trits_meta <- trits |> dplyr::rename_with(~ snakecase::to_snake_case(.x)) |>
          bmi = c(23.0, 22.0, 19.6, 22.3, 29.2),
          hba1c_percent = c(5.3, 5.5, 5.9, 5.6, 6.0),
          name = "Tritschler",
+         disease = "nd",
          islet_center = "IsletCore facility (Edmonton, AB, Canada)",
          donor_study = paste0(name, "_", donor)) |>
   dplyr::rename(species = organism_ch_1,
@@ -1141,13 +1140,13 @@ xin_meta <- xin |>  dplyr::rename(donor = "donor id:ch1",
                                     donor == "NonT2D8" ~ "stroke",
                                     donor == "NonT2D9" ~ "head_trauma|motor_vehicle_accident",
                                     donor == "NonT2D10" ~ "aneurysm",
-                                    donor == "NonT2D11" ~ "anorexia",
+                                    donor == "NonT2D11" ~ "anoxia",
                                     donor == "NonT2D12" ~ "stroke",
                                     donor == "T2D1" ~ "stroke",
-                                    donor == "T2D2" ~ "anorexia",
-                                    donor == "T2D3" ~ "anorexia",
+                                    donor == "T2D2" ~ "anoxia",
+                                    donor == "T2D3" ~ "anoxia",
                                     donor == "T2D4" ~ "stroke",
-                                    donor == "T2D5" ~ "anorexia",
+                                    donor == "T2D5" ~ "anoxia",
                                     donor == "T2D6" ~ "stroke"),
         hba1c_percent = dplyr::case_when(
            donor == "NonT2D2" ~ 5.1,
@@ -1199,7 +1198,8 @@ xin_meta <- xin |>  dplyr::rename(donor = "donor id:ch1",
                                 donor == "T2D4" ~ 251,
                                 donor == "T2D5" ~ 247,
                                 donor == "T2D6" ~ 161),
-         disease = dplyr::case_when(disease == "non-diabetic" ~ "nd"),
+         disease = dplyr::case_when(disease == "non-diabetic" ~ "nd",
+                                    disease == "T2D" ~ "t2d"),
          islet_center = "Prodo Laboratories, Inc") |>
   dplyr::mutate(donor_study = base::paste0(name, "_", donor),
                 dplyr::across(c("age_years", "bmi", "hba1c_percent"), ~ base::as.numeric(.))) |>
@@ -1240,6 +1240,7 @@ xin_d_sup_meta <- xin_d_sup |>
                                ethnicity == "C" ~ "caucasian",
                                ethnicity == "AI" ~ "asian_indian",
                                ethnicity == "H" ~ "hispanic"),
+         disease = "nd",
          cause_of_death = snakecase::to_snake_case(cause_of_death),
          hba1c_percent = stringr::str_extract(hb_a_1_c, "^[^%]+"),
          hba1c_mmol_mol = stringr::str_extract(hb_a_1_c, "(?<=\\()[0-9]+"),
@@ -1281,6 +1282,7 @@ zhang_meta <- zhang |> dplyr::rename_with( ~ to_snake_case(.x)) |>
     hba1c_percent = c(5.8, 5.6, 5.4, 5.8, 5.6, 5.2, 5.4, 6.7, 5.9, 7.6, 6.7),
     bmi = c(31.9, 24.2, 30.7, 35.1, 28.5, 23.5, 23.2, 32.5, 31.7, 24.8, 25.8),
     age_years = c(45, 24, 62, 41, 55, 41, 43, 58, 63, 52, 53),
+    sex = c("m", "m", "f", "m", "m", "m", "f", "m", "m", "m", "m"),
     name = "Zhang",
     donor_study = base::paste0(name, "_", donor),
     islet_center = "Prodo Laboratories Inc",

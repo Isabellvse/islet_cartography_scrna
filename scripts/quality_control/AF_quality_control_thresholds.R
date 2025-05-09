@@ -1,5 +1,6 @@
 # Description -------------------------------------------------------------
-# Create plots for quality control metrics for each study
+# From quality control plots, add threshold data for each study and specific donors / samples
+# We will also add thresholds and annotate whether a sample or donor is excluded
 
 # Set up ------------------------------------------------------------------
 base::source(here::here("islet_cartography_scrna/scripts/misc/set_up.R"))
@@ -14,225 +15,53 @@ paths <- base::list.files(path = here::here("islet_cartography_scrna/data/qualit
 
 base::names(paths) <- purrr::map_chr(paths, ~ stringr::str_extract(.x, pattern = "(?<=quality_metrics/)[^/]+(?=_quality_metrics\\.csv)"))
 
-quality_met <- purrr::map(paths, ~vroom::vroom(.x, delim = ",", col_names = TRUE))
+quality_met <- purrr::map(paths, ~vroom::vroom(.x, delim = ",", col_names = TRUE)) %>% 
+  purrr::modify_depth(1, ~dplyr::rowwise(.) %>%
+                        dplyr::mutate("Unmapped_reads_%" = sum(dplyr::c_across(tidyselect::starts_with("%_of_reads_unmapped_")), na.rm = TRUE)) %>%
+                        dplyr::ungroup() %>% 
+                        # Removed failed samples from barcode
+                        dplyr::filter(!ic_id %in%  c("ic_25_11_11", "ic_25_7_7"), !donor == "excluded"))
+## Thresholds
+# Split into a list
+thresholds <- vroom::vroom(here::here("islet_cartography_scrna/data/quality_control/first_pass/first_pass_threshold.csv"), 
+                           delim = ";", 
+                           col_names = TRUE) |> 
+  (function(df) base::split(df, base::factor(df$name)))()
 
-## Thresholds ----
-thresholds <- vroom::vroom(here::here("islet_cartography_scrna/data/quality_control/first_pass/thresholds.csv"), 
-                           delim = ",", 
-                           col_names = TRUE) 
+# Not split into a list
+thresholds_df <- vroom::vroom(here::here("islet_cartography_scrna/data/quality_control/first_pass/first_pass_threshold.csv"), 
+                              delim = ";", 
+                              col_names = TRUE)
 
 # Preprocess --------------------------------------------------------------
-## Add threshold to quality matrix
-# quality_met_thres <- purrr::map(quality_met, function(df){
-#   if(base::unique(df$platform) %in% c("droplet", "plate_barcode")){
-#     thres <- thresholds |> dplyr::select(name, dplyr::all_of(qc_thres_droplet))
-#     df_thres <- dplyr::left_join(x = df, y = thres, by = "name")
-#     
-#   } else if (base::unique(df$platform) %in% c("plate")) {
-#     thres <- thresholds |> dplyr::select(name, dplyr::all_of(qc_thres_plate))
-#     df_thres <- dplyr::left_join(x = df, y = thres, by = "name")
-#     
-#   } else {
-#     message("platform could not be found")
-#   }
-#   return(df_thres)
-# })
+# Divide Kang into cell and nuclei
+quality_met[["Kang_cell"]] <- quality_met[["Kang"]] |>dplyr::filter(cell_nuclei == "cell")
+quality_met[["Kang_nuclei"]] <- quality_met[["Kang"]] |>dplyr::filter(cell_nuclei == "nuclei")
+quality_met[["Kang"]] <- NULL
 
-## Add unmaped reads % to dataframe
-## Star quality
-quality_met <- purrr::map(quality_met, function(df) {
-  df <- df |> 
-    dplyr::rowwise() %>%
-    dplyr::mutate("Unmapped_reads_%" = sum(dplyr::c_across(tidyselect::starts_with("%_of_reads_unmapped_")), na.rm = TRUE)) %>%
-    dplyr::ungroup()
-  
-  return(df)
-})
+# Add column which states is a donor / sample is excluded -----------------
+quality_met <- quality_met |> 
+  purrr::modify_depth(1, ~ dplyr::mutate(.,
+                                         "Excluded" = dplyr::case_when(ic_id %in% c("ic_25_11_11", # poor rank plot
+                                                                                    "ic_25_7_7", # poor rank plot
+                                                                                    "ic_11_12_359" # Only one cell
+                                                                                    ) ~ "excluded",
+                                                                       donor == "excluded" ~ "excluded",
+                                                                       .default = "included")))
 
-qs2::qs_save(quality_met, here::here("islet_cartography_scrna/data/quality_control/first_pass/quality_met.qs2"))
-quality_met <- qs2::qs_read(here::here("islet_cartography_scrna/data/quality_control/first_pass/quality_met.qs2"))
+# Add donor specific thresholds -------------------------------------------
+sample_thresholds <- data.frame("name" = c(rep("Gurp",2), rep("HPAP_10x", 4), rep("Wang_Sander", 4), rep("Kang_nuclei", 2)),
+                                "ic_id_sample" = c("5", "6", "9", "30", "13", "14", "4", "3", "16", "19", "4", "6"),
+                                "threshold_nUMIs_lower" = c(10000, 10000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1500, 1500),
+                                "threshold_nUMIs_upper" = c(900000, 50000, 50000, 15000, 50000, 50000, 10000, 10000, 10000, 10000, 25000, 25000),
+                                "threshold_nFeatures_lower" = c(3000, 3000, 1000, 1000, 1000, 2000, 500, 500, 500, 500, 500, 500),
+                                "threshold_nFeatures_upper" = c(9000, 8000, 7000, 7000, 7000, 9000, 10000, 10000, 10000, 10000, 10000, 10000),
+                                "threshold_complexity_lower" = c(0.3, 0.1, 0.4, 0.4, 0.4, 0.4, 0.4, 0.3, 0.3, 0.4, 0.2, 0.2),
+                                "threshold_complexity_upper" = c(0.8, 0.55, 1, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.4, 0.4))
 
-# Quality metrics ---------------------------------------------------------
-purrr::imap(quality_met, function(df, name) {
-  pdf(
-    file = base::paste0(
-      here::here(
-        "islet_cartography_scrna/data/quality_control/first_pass/plots/"
-      ),
-      name,
-      "_threshold.pdf"
-    ),
-    height = 2,
-    width = 2
-  )
-  
-  thresholds_filtered <- dplyr::filter(thresholds, name == !!name)
-  
-  if (base::unique(df$platform) %in% c("droplet", "plate_barcode")) {
-    df |>
-      dplyr::select(dplyr::all_of(qc_met_thres_droplet)) |>
-      purrr::imap(~ {
-        lower_col <- paste0("threshold_", .y, "_lower")
-        upper_col <- paste0("threshold_", .y, "_upper")
-        lower <- thresholds_filtered[[lower_col]][1]
-        upper <- thresholds_filtered[[upper_col]][1]
-        
-        # Check if lower or upper is NA or NULL and replace accordingly
-        if (is.na(lower) || is.null(lower)) {
-          lower <- NULL
-        }
-        
-        if (is.na(upper) || is.null(upper)) {
-          upper <- NULL
-        }
-        
-        print(plot_hist_qc_thres(.x, .y, lower, upper))
-      })
-  } else if (base::unique(df$platform) %in% c("plate")) {
-    df |>
-      dplyr::select(dplyr::all_of(qc_met_thres_plate)) |>
-      purrr::imap(~ {
-        lower_col <- paste0("threshold_", .y, "_lower")
-        upper_col <- paste0("threshold_", .y, "_upper")
-        lower <- thresholds_filtered[[lower_col]][1]
-        upper <- thresholds_filtered[[upper_col]][1]
-        
-        # Check if lower or upper is NA or NULL and replace accordingly
-        if (is.na(lower) || is.null(lower)) {
-          lower <- NULL
-        }
-        
-        if (is.na(upper) || is.null(upper)) {
-          upper <- NULL
-        }
-        
-        print(plot_hist_qc_thres(.x, .y, lower, upper))
-      })
-  }
-  
-  dev.off()
-})
-
-pdf(
-  file = here::here("islet_cartography_scrna/data/quality_control/first_pass/plots/threshold.pdf"),
-  height = 2,
-  width = 2
-)
-purrr::imap(quality_met, function(df, name) {
-
-  thresholds_filtered <- dplyr::filter(thresholds, name == !!name)
-  subtitle <- name
-  
-  if (base::unique(df$platform) %in% c("droplet", "plate_barcode")) {
-    df |>
-      dplyr::select(dplyr::all_of(qc_met_thres_droplet)) |>
-      purrr::imap(~ {
-        lower_col <- paste0("threshold_", .y, "_lower")
-        upper_col <- paste0("threshold_", .y, "_upper")
-        lower <- thresholds_filtered[[lower_col]][1]
-        upper <- thresholds_filtered[[upper_col]][1]
-        
-        # Check if lower or upper is NA or NULL and replace accordingly
-        if (is.na(lower) || is.null(lower)) {
-          lower <- NULL
-        }
-        
-        if (is.na(upper) || is.null(upper)) {
-          upper <- NULL
-        }
-        
-        print(plot_hist_qc_thres(.x, .y, lower, upper, subtitle = subtitle))
-      })
-  } else if (base::unique(df$platform) %in% c("plate")) {
-    df |>
-      dplyr::select(dplyr::all_of(qc_met_thres_plate)) |>
-      purrr::imap(~ {
-        lower_col <- paste0("threshold_", .y, "_lower")
-        upper_col <- paste0("threshold_", .y, "_upper")
-        lower <- thresholds_filtered[[lower_col]][1]
-        upper <- thresholds_filtered[[upper_col]][1]
-        
-        # Check if lower or upper is NA or NULL and replace accordingly
-        if (is.na(lower) || is.null(lower)) {
-          lower <- NULL
-        }
-        
-        if (is.na(upper) || is.null(upper)) {
-          upper <- NULL
-        }
-        
-        print(plot_hist_qc_thres(.x, .y, lower, upper, subtitle = subtitle))
-      })
-  }
-
-})
-dev.off()
-
-
-# QC thresholds per donor -------------------------------------------------
-qc_donor <- quality_met |> 
-  purrr::modify_depth(1, ~ base::split(.x, .x$ic_id_donor)) |> 
-  purrr::list_flatten()
-
-thresholds_donor <- qc_donor |> 
-  purrr::modify_depth(1, ~ dplyr::select(.x, ic_id_donor, name) |> 
-                        dplyr::distinct()) |> 
-  dplyr::bind_rows(.id = "ic_id_donor") |> 
-  dplyr::left_join(y = thresholds, by = "name")
-
-
-pdf(
-  file = here::here(
-      "islet_cartography_scrna/data/quality_control/first_pass/plots/threshold_per_donor.pdf"),
-  height = 2,
-  width = 2
-)
-purrr::imap(qc_donor, function(df, name) {
-    thresholds_filtered <- dplyr::filter(thresholds_donor, ic_id_donor == !!name)
-    subtitle <- name
-    if (base::unique(df$platform) %in% c("droplet", "plate_barcode")) {
-      df |>
-        dplyr::select(dplyr::all_of(qc_met_thres_droplet)) |>
-        purrr::imap(~ {
-          lower_col <- paste0("threshold_", .y, "_lower")
-          upper_col <- paste0("threshold_", .y, "_upper")
-          lower <- thresholds_filtered[[lower_col]][1]
-          upper <- thresholds_filtered[[upper_col]][1]
-          
-          # Check if lower or upper is NA or NULL and replace accordingly
-          if (is.na(lower) || is.null(lower)) {
-            lower <- NULL
-          }
-          
-          if (is.na(upper) || is.null(upper)) {
-            upper <- NULL
-          }
-          
-          print(plot_hist_qc_thres(.x, .y, lower, upper, subtitle = subtitle))
-        })
-    } else if (base::unique(df$platform) %in% c("plate")) {
-      df |>
-        dplyr::select(dplyr::all_of(qc_met_thres_plate)) |>
-        purrr::imap(~ {
-          lower_col <- paste0("threshold_", .y, "_lower")
-          upper_col <- paste0("threshold_", .y, "_upper")
-          lower <- thresholds_filtered[[lower_col]][1]
-          upper <- thresholds_filtered[[upper_col]][1]
-          
-          # Check if lower or upper is NA or NULL and replace accordingly
-          if (is.na(lower) || is.null(lower)) {
-            lower <- NULL
-          }
-          
-          if (is.na(upper) || is.null(upper)) {
-            upper <- NULL
-          }
-          
-          print(plot_hist_qc_thres(.x, .y, lower, upper, subtitle = subtitle))
-        })
-    }
-  })
-dev.off()
-
+donor_thresholds <- data.frame("name" = c("HPAP_patch_22"),
+                               "ic_id_sample" = c("5"),
+                               "threshold_complexity_lower" = c(0.002),
+                               "threshold_complexity_upper" = c(0.015))
 
 

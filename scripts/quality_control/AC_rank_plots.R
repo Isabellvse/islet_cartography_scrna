@@ -35,6 +35,7 @@ paths <- base::list.files(path = here::here("islet_cartography_scrna/data/qualit
 not_empty <- purrr::map(paths, ~vroom::vroom(., delim = ",", col_names = TRUE))
 
 # Rank plot ---------------------------------------------------------------
+
 pdf(file = here::here("islet_cartography_scrna/data/quality_control/first_pass/plots/barcode_rank_plots.pdf"), height = 2, width = 2)
 purrr::imap(ranks, function(rank, name){plot_rank(rank = rank, threshold = thresholds[[name]], title = name, non_empty = not_empty[[name]])}) 
 dev.off()
@@ -51,7 +52,7 @@ names(study_names) <- study_names
 ranks_2 <- purrr::map(study_names, ~ {ranks[grep(.x, names(ranks))] |> 
     dplyr::bind_rows(.id = "name")})
 
-# Define samples that completly fails
+# Define samples that completely fails
 failed_samples <- c("Zhang_ic_25_11_11", "Zhang_ic_25_7_7")
 
 pdf(file = here::here("islet_cartography_scrna/data/quality_control/first_pass/plots/barcode_rank_plots_line.pdf"), height = 2, width = 2)

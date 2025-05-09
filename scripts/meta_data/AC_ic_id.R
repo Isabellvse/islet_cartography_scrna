@@ -86,18 +86,18 @@ id_list[["HPAP_patch_23"]] <- NULL
 id_list[["HPAP"]] <- hpap_combined
 
 id_list <- id_list |> purrr::modify_depth(1, ~ dplyr::group_by(., donor) |> 
-                        dplyr::mutate("ic_id_donor" = dplyr::cur_group_id()) |> 
-                        dplyr::ungroup()  |> 
-                        dplyr::group_by(donor, sample) |> 
-                        dplyr::mutate("ic_id_sample" = dplyr::cur_group_id())  |> 
-                        dplyr::ungroup()  |> 
-                        dplyr::mutate(ic_id = base::paste0("ic", "_", study, "_", ic_id_donor, "_", ic_id_sample)) |> 
-                        dplyr::relocate(ic_id, ic_id_study = study, ic_id_donor, ic_id_sample))
+                                            dplyr::mutate("ic_id_donor" = dplyr::cur_group_id()) %>% 
+                                            dplyr::ungroup())
 
 split_dfs <- id_list[["HPAP"]] |> (\(df) base::split(df, factor(df$name)))()
 id_list[["HPAP"]] <- NULL
 id_list <- BiocGenerics::append(id_list, split_dfs)
 
+id_list <- id_list |> purrr::modify_depth(1, ~ dplyr::group_by(., donor, sample) |> 
+                                            dplyr::mutate("ic_id_sample" = dplyr::cur_group_id())  |> 
+                                            dplyr::ungroup()  |> 
+                                            dplyr::mutate(ic_id = base::paste0("ic", "_", study, "_", ic_id_donor, "_", ic_id_sample)) |> 
+                                            dplyr::relocate(ic_id, ic_id_study = study, ic_id_donor, ic_id_sample))
 # test that study ids are correctly assigned
 
 # extract study ids from study_number
