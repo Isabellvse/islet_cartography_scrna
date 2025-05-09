@@ -18,6 +18,7 @@ star_quality <- purrr::imap(files, load_star_quality)
 ## Combine icids and star quality ----
 star_quality_order <- star_quality[base::match(base::names(icid_list), base::names(star_quality))]
 base::all.equal(base::names(icid_list), base::names(star_quality_order))
+# Left join because we only want to keep samples that has been aligned.
 star_id <- purrr::map2(icid_list, star_quality_order, dplyr::left_join)
 
 # save --------------------------------------------------------------------
