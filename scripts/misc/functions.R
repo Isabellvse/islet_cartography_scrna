@@ -805,6 +805,80 @@ read_gtf_parallel <- function(file, max_cores = NULL, chunk_size = 10, max_size 
 
 
 
+# Thresholds --------------------------------------------------------------
+check_thresholds <- function(qc_met, thresholds = NULL, 
+                             qc_droplet = c("nUMIs", "nFeatures", "mitochondrial_fraction", "coding_fraction", "contrast_fraction", "complexity"), 
+                             qc_plate = c("Uniquely_mapped_reads_%", "Unmapped_reads_%", "nCounts", "nFeatures", "mitochondrial_fraction", "coding_fraction", "contrast_fraction", "complexity")) {
+  
+  if (base::unique(qc_met$platform) %in% c("droplet", "plate_barcode")){
+    cols <- qc_droplet
+  } else if (base::unique(qc_met$platform) %in% c("plate")) {
+    cols <- qc_plate
+  }
+  
+  # Pivot thresholds to long format
+  thres_long <- thresholds |>
+    pivot_longer(
+      cols = contains(cols),
+      names_to = c("metric", "bound"),
+      names_pattern = "threshold_(.*)_(lower|upper)",
+      values_to = "threshold"
+    ) |>
+    pivot_wider(names_from = bound, values_from = threshold) |> 
+    dplyr::select(-starts_with("threshold"))
+  
+  # Pivot qc data to long format
+  
+  qc_long <- qc_met |>
+    dplyr::select(name, ic_id, ic_id_sample, ic_id_donor, ic_id_study, platform, barcode, all_of(cols)) |> 
+    pivot_longer(
+      cols = all_of(cols),
+      names_to = "metric",
+      values_to = "value"
+    )
+  
+  # Join QC and thresholds
+  qc_joined <- qc_long |>
+    left_join(thres_long, by = c("name", "metric"))
+  
+  # Apply threshold logic
+  # 1 = failed
+  # 0 = passed
+  
+  qc_checked <- qc_joined |>
+    mutate(
+      failed = case_when(
+        !is.na(lower) & value < lower ~ 1,
+        !is.na(upper) & value > upper ~ 1,
+        TRUE ~ 0
+      )
+    )
+  
+  # Pivot wide and summarise failed samples
+  qc_wide <- qc_checked |>
+    select(-c(value, lower, upper)) |>
+    pivot_wider(names_from = metric, values_from = failed, names_glue = "{metric}_thres") |> 
+    mutate(
+      across(ends_with("_thres"), ~ ifelse(is.na(.), 1, .))
+    ) |>
+    mutate(
+      sum_failed_thres = rowSums(pick(ends_with("_thres")), na.rm = TRUE)
+    ) |>
+    mutate(
+      across(
+        ends_with("_thres"),
+        ~ case_when(
+          . == 1 & sum_failed_thres > 1 ~ 1,
+          TRUE ~ 0
+        ),
+        .names = "{.col}_multipass"
+      )
+    ) |> 
+    dplyr::select(-sum_failed_thres_multipass)
+  
+  return(qc_wide)
+}
+
 # plotting functions ------------------------------------------------------
 my_theme <- function() {
   ggplot2::theme_classic() +
