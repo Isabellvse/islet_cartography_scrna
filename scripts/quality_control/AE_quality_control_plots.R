@@ -125,68 +125,12 @@ dev.off()
 
 # Plot with thresholds ----------------------------------------------------
 ## Passed or not passed ----
-# Create a data frame to calculate which barcodes that did pass / did not not passed to thresholds
-checked <- purrr::imap(quality_met, function(df, name) {
-  # Get thresholds for specific study
-  thres <- thresholds[[name]]
-  print(name)
-  
-  if (base::unique(df$platform) %in% c("droplet", "plate_barcode")){
-    cols <- qc_met_thres_droplet
-  } else if (base::unique(df$platform) %in% c("plate")) {
-    cols <- qc_met_thres_plate
-  }
-  
-  df |>
-    dplyr::mutate(dplyr::across(
-      tidyselect::all_of(cols),
-      .fns = function(value, var = dplyr::cur_column()) {
-        # Get lower and upper threshold
-        lower <- thres |> dplyr::pull(base::paste0("threshold_", var, "_lower"))
-        upper <- thres |> dplyr::pull(base::paste0("threshold_", var, "_upper"))
-        
-        # if FALSE = 0, if TRUE = 1
-        # if value is lower than lower or higher than upper, the sample has failed (TRUE or 1)
-        print(paste("Processing:", var, "Lower:", lower, "Upper:", upper))
-        
-        if (base::is.na(lower) | base::is.null(lower)) {
-          (value > upper) * 1
-        } else if (base::is.na(upper) | base::is.null(upper)) {
-          (value < lower) * 1
-        } else {
-          # is the value either lower than lower or higher than upper
-          (value < lower | value > upper) * 1
-        }
-      },
-      .names = "{.col}_thres"
-    ))  |>
-    
-    dplyr::mutate(
-      # Replace NA values in columns ending with "thres" with 1, as these NA values appear because e.g. nCount is 0
-      dplyr::across(
-        tidyselect::ends_with("thres"),
-        ~ base::ifelse(is.na(.), 1, .)
-      ),
-      
-      # Summarize in how many qc covariates that a barcode failed (1 = in one covariate, > 1 in more than one covairate)
-      sum_failed_thres = base::rowSums(dplyr::pick(tidyselect::ends_with("thres")), na.rm = T),
-      
-      # Annotate if a barcode has failed in one qc covariate, has it also failed in another
-      # 0 = FALSE, barcode has not failed in more than 1 covariate, then the current one
-      # 1 = TRUE, barcode has failed in more than 1 covariate, then the current one
-      dplyr::across(
-        tidyselect::any_of(base::paste0(
-          c(qc_met_thres_plate, qc_met_thres_droplet), "_thres"
-        )),
-        ~ dplyr::case_when(. == 1 &
-                             sum_failed_thres > 1 ~ TRUE * 1, 
-                           . == 1 & sum_failed_thres < 1 ~ FALSE * 1,
-                           . == 0 ~ FALSE * 1,
-                           .default = FALSE * 1),
-        .names = "{.col}_multipass"
-      )
-    )
+# 0 = passed 
+# 1 = failed
+checked <- purrr::imap(quality_met, function(qc, name) {
+  check_thresholds(qc_met = qc, thresholds = thresholds[[name]])
 })
+
 
 ## Plot ----
 pdf(
