@@ -34,52 +34,25 @@ donor_settings_droplet <- list(
   "ic_22_5_5" = list(manual_thres = 30)
   )
 
-# # out "ic_8_22_22" = list(manual_thres = 1000)
-# # Get paths for studies which need empty droplet removal
-# droplet_studies <- star_quality |> 
-#   purrr::map(function(df){df |> dplyr::filter(platform == "droplet") |> 
-#       dplyr::pull("name") |> 
-#       base::unique()}) |>
-#   purrr::list_c()
+# out "ic_8_22_22" = list(manual_thres = 1000)
+# Get paths for studies which need empty droplet removal
+droplet_studies <- star_quality |>
+  purrr::map(function(df){df |> dplyr::filter(platform == "droplet") |>
+      dplyr::pull("name") |>
+      base::unique()}) |>
+  purrr::list_c()
 
-# # Get star_quality metrics for to droplet studies
-# star_quality_droplet <- star_quality[droplet_studies] 
+# Get star_quality metrics for to droplet studies
+star_quality_droplet <- star_quality[droplet_studies]
 
 # Identify empty droplets -------------------------------------------------
-# purrr::imap(star_quality_droplet, function(study_metadata, name){
-#   base::message("Identifying empty droplets for: ", name)
-#   identify_empty_droplets(study_metadata = study_metadata,
-#                         study_name = name,
-#                         donor_settings = donor_settings_droplet,
-#                         save_path = here::here("islet_cartography_scrna/data/quality_control/first_pass/barcode_ranks/"))
-#   base::message("Finished ! identifying empty droplets for: ", name)
-#   })
-
-
-# Find empty droplets for HPAP --------------------------------------------
-identify_empty_droplets(study_metadata = star_quality[["HPAP_10x"]],
-                        study_name = "HPAP_10x",
+purrr::imap(star_quality_droplet, function(study_metadata, name){
+  base::message("Identifying empty droplets for: ", name)
+  identify_empty_droplets(study_metadata = study_metadata,
+                        study_name = name,
                         donor_settings = donor_settings_droplet,
                         save_path = here::here("islet_cartography_scrna/data/quality_control/first_pass/barcode_ranks/"))
-
-
-# # Empty droplets on specific samples --------------------------------------
-# # Get star_quality metrics for to droplet studies
-# star_quality_droplet <- star_quality[droplet_studies] |> 
-#   purrr::modify_depth(1, ~ dplyr::filter(., ic_id %in% "ic_22_16_16"))
-# 
-# i <- star_quality_droplet |> sapply(nrow)>0
-# 
-# star_quality_droplet <- star_quality_droplet[i]
-# 
-# # Identify empty droplets -------------------------------------------------
-# purrr::imap(star_quality_droplet, function(study_metadata, name){
-#   base::message("Identifying empty droplets for: ", name)
-#   identify_empty_droplets(study_metadata = study_metadata,
-#                           study_name = name,
-#                           donor_settings = donor_settings_droplet,
-#                           save_path = here::here("islet_cartography_scrna/data/quality_control/first_pass/barcode_ranks/"))
-#   base::message("Finished ! identifying empty droplets for: ", name)
-# })
+  base::message("Finished ! identifying empty droplets for: ", name)
+  })
 
 
