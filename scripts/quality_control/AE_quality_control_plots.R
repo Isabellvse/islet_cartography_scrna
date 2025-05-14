@@ -32,8 +32,10 @@ thresholds_df <- vroom::vroom(here::here("islet_cartography_scrna/data/quality_c
 
 # Preprocess --------------------------------------------------------------
 # Divide Kang into cell and nuclei
-quality_met[["Kang_cell"]] <- quality_met[["Kang"]] |>dplyr::filter(cell_nuclei == "cell")
-quality_met[["Kang_nuclei"]] <- quality_met[["Kang"]] |>dplyr::filter(cell_nuclei == "nuclei")
+quality_met[["Kang_cell"]] <- quality_met[["Kang"]] |>dplyr::filter(cell_nuclei == "cell") |> 
+  dplyr::mutate(name = paste0(name, "_cell"))
+quality_met[["Kang_nuclei"]] <- quality_met[["Kang"]] |>dplyr::filter(cell_nuclei == "nuclei") |> 
+  dplyr::mutate(name = paste0(name, "_nuclei"))
 quality_met[["Kang"]] <- NULL
 
 
@@ -123,7 +125,8 @@ purrr::iwalk(quality_met, function(df, name) {
 
 dev.off()
 
-# Plot with thresholds ----------------------------------------------------
+
+# Plots -------------------------------------------------------------------
 ## Passed or not passed ----
 # 0 = passed 
 # 1 = failed
@@ -131,77 +134,20 @@ checked <- purrr::imap(quality_met, function(qc, name) {
   check_thresholds(qc_met = qc, thresholds = thresholds[[name]])
 })
 
-
-## Plot ----
+## Histogram per study with study level thresholds ----
 pdf(
   file = here::here("islet_cartography_scrna/data/quality_control/first_pass/plots/qc_plots_thresholds.pdf"),
   height = 2,
   width = 2
 )
-purrr::iwalk(quality_met, function(df, name) {
-  
-  thresholds_filtered <- thresholds[[name]]
-  subtitle <- name
-  
-  # Number of barcodes that fail quality control
-  df_thres <- checked[[name]] |> 
-    dplyr::select(tidyselect::any_of(base::paste0(c(qc_met_thres_plate, qc_met_thres_droplet), "_thres"))) |> 
-    dplyr::summarise_all(sum) |> 
-    dplyr::rename_all(~stringr::str_replace(.,"_thres","")) 
-  
-  # Number of barcodes that fail more than one quality control
-  df_multi <- checked[[name]] |> 
-    dplyr::select(dplyr::ends_with("thres_multipass")) |> 
-    dplyr::summarise_all(sum) |> 
-    dplyr::rename_all(~stringr::str_replace(.,"_thres_multipass","")) 
-  
-  # Total number of barcodes
-  n_total <- checked[[name]] |> base::nrow()
-  
-  if (base::unique(df$platform) %in% c("droplet", "plate_barcode")){
-    cols <- qc_met_thres_droplet
-  } else if (base::unique(df$platform) %in% c("plate")) {
-    cols <- qc_met_thres_plate
-  }
-
-    df |>
-      dplyr::select(tidyselect::all_of(cols)) |>
-      purrr::iwalk(~ {
-        lower_col <- paste0("threshold_", .y, "_lower")
-        upper_col <- paste0("threshold_", .y, "_upper")
-        lower <- thresholds_filtered[[lower_col]][1]
-        upper <- thresholds_filtered[[upper_col]][1]
-        
-        # Check if lower or upper is NA or NULL and replace accordingly
-        if (base::is.na(lower) || base::is.null(lower)) {
-          lower <- NULL
-        }
-        
-        if (base::is.na(upper) || base::is.null(upper)) {
-          upper <- NULL
-        }
-        
-        # How many barcodes fail threshold
-        col <- base::paste0(.y)
-        fail <- df_thres[[col]][1]
-        fail_multi <- df_multi[[col]][1]
-        
-        # Create caption
-        caption <- base::paste0("Total: ", n_total, ", Failed: ", fail, ", Failed multi: ", round((fail_multi/fail)*100,2), "%")
-        
-        # Plot
-        base::print(plot_hist_qc_thres(.x, .y, lower, upper, subtitle = subtitle, caption = caption))
-        }
-        )
-    }
-  )
+iwalk(quality_met, function(qc_met, name){
+  visualize_qc_hist_with_thresholds(qc_met = qc_met, thresholds = thresholds[[name]], checked = checked[[name]], subtitle = name)
+  return(checked)
+})
 dev.off()
 
-
-# Barcodes removed per sample / donor -------------------------------------
+## Barcodes removed per sample / donor -------------------------------------
 # Plot number of barcodes removed from each sample (droplet based) or donor (plate based)
-
-## Plot ----
 pdf(
   file = here::here(
     "islet_cartography_scrna/data/quality_control/first_pass/plots/qc_plots_per_donor_sample_bar.pdf"
@@ -212,224 +158,39 @@ pdf(
 purrr::iwalk(checked, function(df, subtitle) {
   subtitle = subtitle
   
-  if (base::unique(df$platform) %in% c("droplet", "plate_barcode")) {
-    df_thres <- df |>
-      dplyr::select(ic_id_sample, tidyselect::all_of(base::paste0(qc_met_thres_droplet, "_thres"))) |>
-      dplyr::group_by(ic_id_sample) |>
-      dplyr::summarise_all(sum) |>
-      dplyr::rename_all( ~ stringr::str_replace(., "_thres", ""))
-    
-    # Total number of barcodes
-    n_total <- df |>
-      dplyr::group_by(ic_id_sample) |>
-      dplyr::tally() |>
-      dplyr::full_join(df_thres, by = "ic_id_sample") |>
-      dplyr::mutate(dplyr::across(
-        c(-ic_id_sample, -n),
-        .fns = function(qc) {
-          round((qc / n) * 100, 2)
-        }
-      ),
-      ic_id_sample = as.character(ic_id_sample)) |>
-      dplyr::select(-n) |>
-      tidyr::pivot_longer(-ic_id_sample, names_to = "qc", values_to = "value")
-    
-    # Identify rows with missing values
-    missing_values <- n_total  |>  dplyr::filter(is.na(value))
-    print("Study:")
-    print(subtitle)
-    print("Rows with missing values:")
-    print(missing_values)
-    
-    # Identify rows with values outside the scale range (assuming scale range is 0-100)
-    outside_scale_range <- n_total  |>  dplyr::filter(value < 0 | value > 100)
-    print("Rows with values outside the scale range:")
-    print(outside_scale_range)
-    
-    plot <- n_total |>
-      ggplot2::ggplot(aes(y = ic_id_sample, x = value)) +
-      ggplot2::geom_bar(stat = "identity",
-                        position = position_dodge(),
-                        fill = "black") +
-      ggplot2::geom_text(aes(label = value), size = 1.5, hjust = -0.2) +
-      ggplot2::labs(
-        subtitle = subtitle,
-        x = "% of total barcodes",
-        y = "Sample"
-      ) +
-      ggplot2::scale_x_continuous(limits = c(0, 100), breaks = scales::pretty_breaks(n = 5)) +
-      ggplot2::facet_wrap(dplyr::case_when(
-        qc == "nUMIs" ~ "Number of unique transcripts",
-        qc == "nCounts" ~ "Number of counts",
-        qc == "nFeatures" ~ "Number of detected features",
-        qc == "mitochondrial_fraction" ~ "Mitochondrial fraction",
-        qc == "ribosomal_fraction" ~ "Ribosomal fraction",
-        qc == "coding_fraction" ~ "Protein coding fraction",
-        qc == "contrast_fraction" ~ "Contrast fraction",
-        qc == "complexity" ~ "Library complexity",
-        qc == "Uniquely_mapped_reads_%" ~ "% of uniquely mapped reads",
-        qc == "Unmapped_reads_%" ~ "% of unmapped reads",
-        TRUE ~ qc
-      ) ~ ., nrow = 1) +  
-      my_theme()
-    
-    print(plot)
-    
-    n_total_wide <- n_total %>% tidyr::pivot_wider(id_cols = ic_id_sample, names_from = qc, values_from = value)
-    print(n_total_wide)
-  } else if (base::unique(df$platform) %in% c("plate")) {
-    df_thres <- df |>
-      dplyr::select(ic_id_donor, tidyselect::all_of(base::paste0(qc_met_thres_plate, "_thres"))) |>
-      dplyr::group_by(ic_id_donor) |>
-      dplyr::summarise_all(sum) |>
-      dplyr::rename_all( ~ stringr::str_replace(., "_thres", ""))
-    
-    # Total number of barcodes
-    n_total <- df |>
-      dplyr::group_by(ic_id_donor) |>
-      dplyr::tally() |>
-      dplyr::full_join(df_thres, by = "ic_id_donor") |>
-      dplyr::mutate(dplyr::across(
-        c(-ic_id_donor, -n),
-        .fns = function(qc) {
-          round((qc / n) * 100, 2)
-        }
-      ),
-      ic_id_donor = as.character(ic_id_donor)) |>
-      dplyr::select(-n) |>
-      tidyr::pivot_longer(-ic_id_donor,
-                          names_to = "qc",
-                          values_to = "value")
-    
-    # Identify rows with missing values
-    missing_values <- n_total |>  dplyr::filter(is.na(value))
-    print("Study:")
-    print(subtitle)
-    print("Rows with missing values:")
-    print(missing_values)
-    
-    # Identify rows with values outside the scale range (assuming scale range is 0-100)
-    outside_scale_range <- n_total  |>  dplyr::filter(value < 0 | value > 100)
-    print("Rows with values outside the scale range:")
-    print(outside_scale_range)
-    
-    plot <- n_total |>
-      ggplot2::ggplot(aes(y = ic_id_donor, x = value)) +
-      ggplot2::geom_bar(stat = "identity",
-                        position = position_dodge(),
-                        fill = "black") +
-      ggplot2::geom_text(aes(label = value), size = 1.5, hjust = -0.2) +
-      ggplot2::labs(
-        subtitle = subtitle,
-        x = "% of total barcodes",
-        y = "Donor"
-      ) +
-      ggplot2::scale_x_continuous(limits = c(0, 100), breaks = scales::pretty_breaks(n = 5)) +
-      ggplot2::facet_wrap( dplyr::case_when(
-        qc == "nUMIs" ~ "Number of unique transcripts",
-        qc == "nCounts" ~ "Number of counts",
-        qc == "nFeatures" ~ "Number of detected features",
-        qc == "mitochondrial_fraction" ~ "Mitochondrial fraction",
-        qc == "ribosomal_fraction" ~ "Ribosomal fraction",
-        qc == "coding_fraction" ~ "Protein coding fraction",
-        qc == "contrast_fraction" ~ "Contrast fraction",
-        qc == "complexity" ~ "Library complexity",
-        qc == "Uniquely_mapped_reads_%" ~ "% of uniquely mapped reads",
-        qc == "Unmapped_reads_%" ~ "% of unmapped reads",
-        TRUE ~ qc) ~ ., nrow = 1) + 
-      my_theme()
-    
-    print(plot)
-    
-    n_total_wide <- n_total %>% tidyr::pivot_wider(id_cols = ic_id_donor, names_from = qc, values_from = value)
-    print(n_total_wide)
-  }
-}
-)
+  visualize_barcodes_failed_qc(checked = df, subtitle = subtitle)
+})
 dev.off()
 
+# Combine thresholds, passing and quality control together ----------------
+quality_met <- imap(quality_met, function(df, name){
+  df |> 
+    dplyr::left_join(y = thresholds[[name]], 
+                     relationship = "many-to-one") |> 
+    dplyr::full_join(y = checked[[name]])
+})
 
-# QC plots per donor / sample with thresholds -----------------------------
-
-# Split qc values by donor or sample according to platform
-qc_split <- quality_metqc_split <- quality_met |> 
-  purrr::modify_depth(1, ~ if (base::unique(.x$platform) %in% c("droplet", "plate_barcode")) {
-    base::split(.x, .x$ic_id_sample)
-  } else if (base::unique(.x$platform) %in% c("plate")) {
-    base::split(.x, .x$ic_id_donor)
-}) |> 
-  purrr::list_flatten() %>% 
-  purrr::modify_at(c("Kang_cell_1", "Kang_cell_3", "Kang_cell_5"), ~dplyr::mutate(., name = paste0(name, "_cell"))) %>% 
-  purrr::modify_at(c("Kang_nuclei_2", "Kang_nuclei_4", "Kang_nuclei_6"), ~dplyr::mutate(., name = paste0(name, "_nuclei")))
-
-
-# Add thresholds values to qc values by donor / sample
-thresholds_split <- qc_split |> 
-  purrr::modify_depth(1, ~ 
-                        if (base::unique(.x$platform) %in% c("droplet", "plate_barcode")) {
-                          dplyr::select(.x, id = ic_id_sample, name) |> 
-                            dplyr::distinct()
-                        } else if (base::unique(.x$platform) %in% c("plate")) {
-                          dplyr::select(.x, id = ic_id_donor, name) |> 
-                            dplyr::distinct()
-                        }) |> 
-  dplyr::bind_rows(.id = "id") |> 
-  dplyr::left_join(y = thresholds_df, by = "name")
-
-## Plot ----
+## qc metrics per sample / donor ----
 pdf(
   file = here::here(
     "islet_cartography_scrna/data/quality_control/first_pass/plots/qc_plots_per_donor_sample.pdf"),
   height = 2,
   width = 2
 )
-purrr::iwalk(qc_split, function(df, name) {
-  thresholds_filtered <- dplyr::filter(thresholds_split, id == !!name)
+
+# Split by sample or donor
+quality_met_split <- quality_met |> 
+  purrr::modify_depth(1, ~ if (base::unique(.x$platform) %in% c("droplet", "plate_barcode")) {
+    base::split(.x, .x$ic_id_sample)
+  } else if (base::unique(.x$platform) %in% c("plate")) {
+    base::split(.x, .x$ic_id_donor)}) |> 
+  purrr::list_flatten()
+
+# make hitogram plots for each sample / donor
+purrr::iwalk(quality_met_split, function(df, name){
   subtitle <- name
-  if (base::unique(df$platform) %in% c("droplet", "plate_barcode")) {
-    df |>
-      dplyr::select(dplyr::all_of(qc_met_thres_droplet)) |>
-      purrr::imap(~ {
-        lower_col <- paste0("threshold_", .y, "_lower")
-        upper_col <- paste0("threshold_", .y, "_upper")
-        lower <- thresholds_filtered[[lower_col]][1]
-        upper <- thresholds_filtered[[upper_col]][1]
-        
-        # Check if lower or upper is NA or NULL and replace accordingly
-        if (is.na(lower) || is.null(lower)) {
-          lower <- NULL
-        }
-        
-        if (is.na(upper) || is.null(upper)) {
-          upper <- NULL
-        }
-        
-        print(plot_hist_qc_thres(.x, .y, lower, upper, subtitle = subtitle))
-      })
-  } else if (base::unique(df$platform) %in% c("plate")) {
-    df |>
-      dplyr::select(dplyr::all_of(qc_met_thres_plate)) |>
-      purrr::imap(~ {
-        lower_col <- paste0("threshold_", .y, "_lower")
-        upper_col <- paste0("threshold_", .y, "_upper")
-        lower <- thresholds_filtered[[lower_col]][1]
-        upper <- thresholds_filtered[[upper_col]][1]
-        
-        # Check if lower or upper is NA or NULL and replace accordingly
-        if (is.na(lower) || is.null(lower)) {
-          lower <- NULL
-        }
-        
-        if (is.na(upper) || is.null(upper)) {
-          upper <- NULL
-        }
-        
-        print(plot_hist_qc_thres(.x, .y, lower, upper, subtitle = subtitle))
-      })
-  }
+  print(subtitle)
+  visualize_qc_hist_threshold_per_sample(qc_met_split = df, subtitle = subtitle)
 })
+
 dev.off()
-
-
-
-
