@@ -8,7 +8,7 @@ qc_metrics_droplet <- c("nUMIs", "nFeatures", "mitochondrial_fraction", "ribosom
 qc_metrics_plate <- c("nCounts", "nFeatures", "mitochondrial_fraction", "ribosomal_fraction", "coding_fraction", "contrast_fraction", "complexity")
 
 qc_met_thres_droplet <- c("nUMIs", "nFeatures", "mitochondrial_fraction", "coding_fraction", "contrast_fraction", "complexity")
-qc_met_thres_plate <- c("Uniquely_mapped_reads_%", "Unmapped_reads_%", "nCounts", "nFeatures", "mitochondrial_fraction", "coding_fraction", "contrast_fraction", "complexity")
+qc_met_thres_plate <- c("Uniquely_mapped_reads_%", "Unmapped_reads_%", "nCounts", "nFeatures", "mitochondrial_fraction", "coding_fraction", "contrast_fraction")
 
 
 qc_star <- c(
