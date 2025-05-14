@@ -68,7 +68,7 @@ df_combined_star_list |>
 
 # Combine with overview to get study name and method used
 
-# As the same donors are repeated in the HPAP dataset, we will breifly combine them 
+# As the same donors are repeated in the HPAP dataset, we will combine them 
 # for generation of ic_ids and then split them again
 
 id_list <- df_combined_star_list |> 
@@ -98,13 +98,13 @@ id_list <- id_list |> purrr::modify_depth(1, ~ dplyr::group_by(., donor, sample)
                                             dplyr::ungroup()  |> 
                                             dplyr::mutate(ic_id = base::paste0("ic", "_", study, "_", ic_id_donor, "_", ic_id_sample)) |> 
                                             dplyr::relocate(ic_id, ic_id_study = study, ic_id_donor, ic_id_sample))
-# test that study ids are correctly assigned
+# Test that study ids are correctly assigned
 
-# extract study ids from study_number
+# Extract study ids from study_number
 study <- study_number |> dplyr::mutate(pull = base::paste0(name, "_", study)) |> 
                   dplyr::pull("pull")
 
-# extract study id from id_list
+# Extract study id from id_list
 id <- id_list |> purrr::modify_depth(1, ~ dplyr::select(., study = ic_id_study, name)) |> 
   dplyr::bind_rows() |> 
   dplyr::distinct() |> 
