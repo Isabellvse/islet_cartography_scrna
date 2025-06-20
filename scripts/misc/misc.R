@@ -42,3 +42,117 @@ qc_star <- c(
   "Number_of_splices_Total",
   "Uniquely_mapped_reads_number"
 )
+
+
+# meta data columns -------------------------------------------------------
+meta_cols <- c("name",
+               "ic_id",
+               "ic_id_study",
+               "ic_id_donor",
+               "donor",
+               "sample",
+               "age_years",
+               "sex",
+               "gender",
+               "hba1c_percent",
+               "Hba1c_percent",
+               "bmi",
+               "ethnicity",
+               "disease",
+               "cause_of_death",
+               "cell_nuclei",
+               "library_prep",
+               "islet_center",
+               "center_ch_1",
+               "organism",
+               "cryopreserved",
+               "fresh_or_cryo",
+               "facs_sorted",
+               "facs",
+               "sorting_instrument",
+               "sequencing_run",
+               "cold_ischaemia_time_hours",
+               "cold_ischemia_time_h",
+               "cold_ischemia_time",
+               "cold_ischemia_time_ddhhmmss",
+               "culture_time_day",
+               "culture_time_hours",
+               "cultured_days",
+               "geo_accession",
+               "cell_type",
+               "inferred_cell_type",
+               "patched_ch_1", 
+               "patched",
+               "plate",
+               "tissue_source",
+               "source_name_ch1",
+               "tissue",
+               "allocation_via",
+               "timefrom_dispersion_days",
+               "cultured_days",
+               "instrument_model")
+
+
+# Order of meta data columns ----------------------------------------------
+meta_variance_ordered <- c(
+  # Study-level meta data and Donor/sample identification
+  "ic_id_study", "ic_id_donor", "ic_id_sample", "name", "study", 
+  "donor", "sample", "bioproject", "geo_accession", 
+  "pmid", "doi", "year_public", "identifier",
+  
+  # Biometric / clinical data
+  "disease", "age_years", "hba_1_c_percent", "sex", "gender", "bmi",
+  "ethnicity", "cause_of_death",
+  
+  # Islet / tissue / culture metadata
+  "tissue", "islet_center", 
+  "islet_allocation_facility", 
+  "islet_culture_medium", "islet_culture_medium_glucose_milimolar", 
+  "islet_culture_hours", "cold_ischemia_hours", "islet_fresh_frozen", 
+  "islet_isolation_enzyme", "treatment_patch", "treatment_facs",
+  
+  # Processing / library / sequencing metadata
+  "cell_nuclei", "barcode", "study_cell_annotation", "library_prep", 
+  "library_layout", "instrument_facs", 
+  "instrument_seq", "dissociation_method", "dissociation_tool", 
+  "sequencing_run", "strandedness", "type_of_alignment", 
+  "star_version",
+  
+  # Quantification / expression metadata
+  "count_quantification", "count_molecule"
+)
+
+meta_anndata_ordered <- c(
+  # Study-level meta data and Donor/sample identification
+  "ic_id_study", "ic_id_donor", "ic_id_sample", "name", "study", 
+  "donor", "sample", "bioproject", "geo_accession", 
+  "pmid", "doi", "year_public", "identifier",
+  
+  # Biometric / clinical data
+  "disease", "age_years", "hba_1_c_percent", "sex", "gender", "bmi",
+  "ethnicity", "ethnicity_broad_harmonized", "ethnicity_sub_harmonized",  
+  "cause_of_death", "cause_of_death_broad_harmonized", "cause_of_death_sub_harmonized",
+  
+  # Islet / tissue / culture metadata
+  "tissue", "islet_center", 
+  "islet_allocation_facility", 
+  "islet_culture_medium", "islet_culture_medium_glucose_milimolar", 
+  "islet_culture_hours", "cold_ischemia_hours", "islet_fresh_frozen", 
+  "islet_isolation_enzyme", "treatment_patch", "treatment_facs",
+  
+  # Barcode / cell level meta data 
+  "barcode",  "excluded", "n_count", "n_feature",
+  "mitochondrial_fraction", "coding_fraction", "contrast_fraction",
+  "complexity", "uniquely_mapped_reads_percent",  "unmapped_reads_percent",
+  "study_cell_annotation", "study_cell_annotation_harmonized",
+  
+  # Processing / library / sequencing metadata
+  "cell_nuclei", "library_prep", 
+  "library_layout", "plate", "instrument_facs", 
+  "instrument_seq", "dissociation_method", "dissociation_tool", 
+  "sequencing_run", "strandedness", "type_of_alignment", 
+  "star_version",
+  
+  # Quantification / expression metadata
+  "rna_count", "count_quantification", "count_molecule"
+)

@@ -16,6 +16,7 @@ study_number <- base::data.frame(
 )
 
 qs2::qs_save(study_number, here::here("islet_cartography_scrna/data/metadata/study_number.qs2"))
+
 # Avrahami ----------------------------------------------------------------
 # Load and process GEO data from two different files, renaming columns for clarity
 a_1 <- GEOquery::getGEO(filename = here::here("islet_cartography_scrna/data_raw/meta/Avrahami/GSE154126-GPL11154_series_matrix.txt"), getGPL = F)
@@ -828,6 +829,7 @@ shrestha <- GEOquery::getGEO(filename = here("islet_cartography_scrna/data_raw/m
 shrestha <- Biobase::phenoData(shrestha)@data
 shrestha_wget_2 <- read.delim(here("islet_cartography_scrna/scripts/download_alignment/Shrestha/Shrestha.wget"), header = F)
 
+# We do not include facs sorted alpha and beta-cells - only studies where rare cell types are sorted
 shrestha_meta <- shrestha |>
   dplyr::rename_with(~ snakecase::to_snake_case(.x)) |>
   dplyr::rename(disease = disease_state_ch_1) |>

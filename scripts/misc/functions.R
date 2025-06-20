@@ -1534,4 +1534,14 @@ visualize_qc_hist_threshold_per_sample <- function(qc_met_split, subtitle = NULL
 }
 
 
-  
+# Converting --------------------------------------------------------------
+parse_to_hours <- function(time_str) {
+  parts <- strsplit(time_str, " ")[[1]]
+  days <- as.numeric(gsub(" days", "", parts[1]))
+  time_parts <- strsplit(parts[3], ":")[[1]]
+  hours <- as.numeric(time_parts[1])
+  minutes <- as.numeric(time_parts[2])
+  seconds <- as.numeric(time_parts[3])
+  return((days * 24) + (hours) + (minutes / 60) + seconds / 3600)
+}
+
