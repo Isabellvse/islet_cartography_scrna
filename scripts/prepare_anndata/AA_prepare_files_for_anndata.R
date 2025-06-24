@@ -85,7 +85,8 @@ ann_meta_data <- purrr::imap(quality_control, function(df_qc, name){
                 platform = dplyr::case_when(library_prep %in% droplet_based ~ "droplet",
                                             library_prep %in% plate_based ~ "plate",
                                             library_prep %in% plate_based_bc ~ "plate_barcode"))  |>  
-    dplyr::relocate(platform, .after = "library_prep")
+    dplyr::relocate(platform, .after = "library_prep") %>% 
+    dplyr::relocate(barcode)
   return(output)
 })
 
