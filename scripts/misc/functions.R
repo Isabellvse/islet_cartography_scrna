@@ -1545,3 +1545,51 @@ parse_to_hours <- function(time_str) {
   return((days * 24) + (hours) + (minutes / 60) + seconds / 3600)
 }
 
+
+# barcode file processing -------------------------------------------------
+
+#' Add prefix to barcode or replace barcode with ic_id
+#'
+#' @param exists bool; TRUE/ FALSE does path to barcode file exsist with file.exsist()
+#' @param path Path to barcode file
+#' @param ic_id_sample Name to add as prefix or replace barcode with
+#' @param platform A string (plate, plate_barcode or droplet) will determine how ic_id_sample is handled
+#' @param save_path Path to save the new barcode file
+#'
+#' @returns
+#' @export
+#'
+#' @examples
+process_barcode_files <- function(exists, path, ic_id_sample, platform, save_path){
+  
+  # If file does not exist, stop
+  if (!exists){
+    stop("path does not exist!")
+  } 
+  
+  result <-  tryCatch({
+    # Load barcode file 
+    barcodes <- vroom::vroom_lines(path)
+    
+    # Replace or prefix barcode
+    if (platform %in% c("droplet", "plate_barcode")){
+      prefixed_lines <- base::paste0(ic_id_sample, "_", barcodes)
+    } else if (platform %in% c("plate")) {
+      prefixed_lines <- ic_id_sample 
+    } else {
+      stop("Platform does not match any of the requirements!")
+    }
+    
+    # Save barcode file 
+    vroom::vroom_write_lines(x = prefixed_lines, file = save_path)
+    
+    # Check that the new saved file actually exists
+    if (!file.exists(save_path)) {
+      stop(paste0("Did not successfully write to: ", save_path))
+    }
+  },
+  error = function(e) {
+    message("Error processing ", path, ": ", e$message)
+  })
+}
+
