@@ -384,7 +384,7 @@ meta_sub_id <- icid_list |>
   dplyr::mutate(ic_id_donor = paste0(ic_id_study, "_", ic_id_donor), # combine study and donor id
                 ic_id_sample = paste0(ic_id_donor, "_", ic_id_sample), # combine study, donor, and sample id
                 dplyr::across(.cols = tidyselect::starts_with("ic_id"), .fns = ~paste0("ic", "_", .x))) |> #add ic_ prefix
-  dplyr::full_join(y = meta_sub_cols) # Join with meta data
+  dplyr::left_join(y = meta_sub_cols) # Join with meta data
 
 ## Order of columns - check this 
 meta_harmonized  <- meta_sub_id |> dplyr::select(tidyselect::all_of(meta_variance_ordered))
