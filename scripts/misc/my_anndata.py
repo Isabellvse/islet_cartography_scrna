@@ -64,7 +64,7 @@ def define_file_path_from_meta(metadata_df, verbose = False):
 
 def create_anndata_per_sample(sample_id, base_data_dir, metadata_path,
     matrix_filename = "matrix.mtx", features_filename = "features.tsv", barcodes_filename = "barcodes_prefixed.tsv", 
-    metadata_barcode_col = 6, verbose = True):
+    metadata_barcode_col = 0, verbose = True):
     """
     Create an AnnData object for a single sample, where barcodes in meta data file match barcodes in the count files.
 
@@ -75,7 +75,7 @@ def create_anndata_per_sample(sample_id, base_data_dir, metadata_path,
         matrix_filename: str = "matrix.mtx",
         features_filename: str = "features.tsv",
         barcodes_filename: str = "barcodes_prefixed.tsv",
-        metadata_barcode_col: int = 6, # Column index in metadata_df that contains the barcode
+        metadata_barcode_col: int = 0, # Column index in metadata_df that contains the barcode
         verbose: bool = True
         
     Returns:
@@ -128,6 +128,9 @@ def create_anndata_per_sample(sample_id, base_data_dir, metadata_path,
 
     # Load barcodes
     bar = pd.read_csv(barcodes_file, sep="\t", index_col=0, header=None)
+    
+    # Set index name to 0, otherwise we will have trouble saving the object later
+    bar.index.name = None
 
     vprint(f"[OK] 'barcodes' loaded for {sample_id} with shape {
             bar.shape}. Preview:\n{
@@ -146,7 +149,7 @@ def create_anndata_per_sample(sample_id, base_data_dir, metadata_path,
     # Load features (genes)
     var_df = pd.read_csv(features_file, sep="\t", index_col=0, header=None)
     var_df.columns = ["gene_name", "feature_type"]
-
+    var_df.index.name = None
     vprint(f"[OK] 'features' (genes) loaded with shape {var_df.shape}. Preview:\n{var_df.head()}", verbose)
 
     # Create AnnData object
@@ -160,8 +163,11 @@ def create_anndata_per_sample(sample_id, base_data_dir, metadata_path,
     # file..."
     vprint("[SUB] Subsetting metadata to barcodes found in the current sample...", verbose)
 
-    meta_bar_subset = meta.loc[[
-        x for x in bar.index.tolist() if x in meta.index]]
+    # Find common barcodes
+    common_barcodes = meta.index.intersection(bar.index)
+
+    # subset meta dataframe
+    meta_bar_subset = meta.loc[common_barcodes]
 
     if meta_bar_subset.empty:
         print("[!!] Subsetting resulted in an empty metadata DataFrame for this sample. This might indicate no matching barcodes. Skipping.")
@@ -179,11 +185,12 @@ def create_anndata_per_sample(sample_id, base_data_dir, metadata_path,
         f"[OK] AnnData has been subset to shape: {
             X_sub.shape} (cells × genes)", verbose)
 
-    # Align meta_bar_subset to X_sub.obs's index order
-    meta_bar_subset = meta_bar_subset.loc[X_sub.obs.index]
+    # Align meta_bar_subset to X_sub.obs's index order (it will only add new index if they are different)
+    meta_bar_subset = meta_bar_subset.reindex(X_sub.obs.index)
 
     assert set(meta_bar_subset.index).issubset(
         set(X_sub.obs.index)
+        
     ), "Some barcodes in obs_bar are not in X_sub.obs"
     vprint("[OK] Barcodes in meta data are found in AnnData.", verbose)
 
@@ -196,9 +203,6 @@ def create_anndata_per_sample(sample_id, base_data_dir, metadata_path,
     else:
         vprint("[OK] No missing barcodes in meta data.", verbose)
 
-        # Align obs_bar to X_sub.obs's index order
-        meta_bar_subset = meta_bar_subset.loc[X_sub.obs.index]
-
         # Check if the indices are now aligned and in the same order
         assert meta_bar_subset.index.equals(
             X_sub.obs.index
@@ -206,9 +210,6 @@ def create_anndata_per_sample(sample_id, base_data_dir, metadata_path,
         vprint("[OK] Indices in meta data are in the same order as the AnnData.", verbose)
 
         vprint("[..] Adding metadata columns from meta data to AnnData...", verbose)
-
-        # Ensure obs_bar is aligned to X_sub.obs
-        meta_bar_subset = meta_bar_subset.loc[X_sub.obs.index]
 
         for col in meta_bar_subset.columns:
             X_sub.obs[col] = meta_bar_subset[col]
@@ -236,7 +237,7 @@ def get_sample_ids(metadata_df):
     return sample_ids
 
 
-def build_sample_map(metadata_paths, base_data_dirs):
+def build_sample_map(metadata_paths, base_data_dirs, metadata_barcode_col = 0):
     """
     Match metadata files to their corresponding data directories
     and return a mapping from sample_id to its base_dir and metadata_path.
@@ -244,6 +245,7 @@ def build_sample_map(metadata_paths, base_data_dirs):
     Args:
         metadata_paths (List[str]): paths to metadata CSV files
         base_data_dirs (List[str]): paths to preprocessed data directories
+        metadata_barcode_col: int = 0, # Column index in metadata_df that contains the barcode
 
     Returns:
         Dict[str, Dict]: sample_id -> { base_data_dir, metadata_path }
@@ -259,7 +261,7 @@ def build_sample_map(metadata_paths, base_data_dirs):
 
     for metadata_path in metadata_paths:
         # Load meta data
-        df = pd.read_csv(metadata_path, sep=",", index_col=6)
+        df = pd.read_csv(metadata_path, sep=",", index_col= metadata_barcode_col)
 
         # Get sample ids from meta data
         sample_ids = get_sample_ids(df)
@@ -272,7 +274,6 @@ def build_sample_map(metadata_paths, base_data_dirs):
         # Directly match study name within the base_name_map, this means that we handle cases like 'Wang', 'Wang_Sander'
         # As they are exact matches between meta data name and base_name_map they
         # are not used below.
-
         if metadata_stem in base_name_map:
             matched_dir = base_name_map[metadata_stem]
 
@@ -307,21 +308,37 @@ def build_sample_map(metadata_paths, base_data_dirs):
 
 def merge_samples_per_study(sample_map, output_dir, subset='yes', verbose = True):
     """
-    sample_map: dict
-        sample_id -> { base_data_dir, metadata_path }
-    output_dir: str
-        Where to save combined h5ad files per study (metadata_stem)
-    subset: str = 'yes'
-        Whether to subset combined AnnData to only include cells marked as "included" (QC filtering)
+    Merge data from each sample per study into one anndata object, and only keep cells that have passed qc 
+    cells marked with "included" from column called "excluded" and save as a h5ad file
+
+    Args:
+        sample_map: dict
+            sample_id -> { base_data_dir, metadata_path }
+        output_dir: str
+            Where to save combined h5ad files per study (metadata_stem)
+        subset: str = 'yes'
+            Whether to subset combined AnnData to only include cells marked as "included" (QC filtering)
     """
 
     # Group samples by study (using metadata_stem)
+    # Create an empty dictionary
     study_samples = defaultdict(list)
 
+    # For each sample_id, it looks up the stored metadata_path and extracts the "study name" (metadata_stem) 
+    # from that path. It then uses this metadata_stem to group the sample_ids together into the study_samples dictionary.
+        
     for sample_id, info in sample_map.items():
+        
+        # stem = Get the final path component without suffic (see help(Path.stem))
+        # replace = Remove "_metadata" from the final part of the path components
+        # (see help(Path.replace))
         metadata_stem = Path(info["metadata_path"]).stem.replace("_metadata", "")
+        
+        # Appends a list of sample_ids grouped under the dataset name 'metadata_stem' in the study_samples dictionary.
         study_samples[metadata_stem].append(sample_id)
 
+
+    # For all samples in each study, create an an dataobject, subset it 
     for study, samples in study_samples.items():
         adata_list = []
 
@@ -338,6 +355,7 @@ def merge_samples_per_study(sample_map, output_dir, subset='yes', verbose = True
             if adata is not None:
                 adata_list.append(adata)
 
+        # Merge all ann data object per study into one
         if adata_list:
             combined_adata = sc.concat(
                 adata_list,
@@ -346,9 +364,12 @@ def merge_samples_per_study(sample_map, output_dir, subset='yes', verbose = True
             )
 
             if subset.lower() == 'yes':
-                combined_adata = combined_adata[combined_adata.obs.excluded == "included"]
+                combined_adata = combined_adata[combined_adata.obs.excluded == "included"].copy()
 
+            # Save h5ad object
             save_path = os.path.join(output_dir, f"{study}.h5ad")
             combined_adata.write_h5ad(save_path)
 
-            print(f"[OK] Saved combined AnnData for study '{study}' to {save_path}")
+            # Check that file exsist
+            if os.path.isfile(save_path):
+                print(f"[OK] Saved combined AnnData for study '{study}' to {save_path}")
