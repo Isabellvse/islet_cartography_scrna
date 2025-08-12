@@ -1,0 +1,48 @@
+{
+    "siteVersion": 3,
+    "request": {
+        "application": {
+            "name": "jupyter-all-spark",
+            "version": "4.3.0"
+        },
+        "product": {
+            "id": "u1-standard-64",
+            "category": "u1-standard-h",
+            "provider": "ucloud"
+        },
+        "name": "save anndata object motakis",
+        "replicas": 1,
+        "parameters": {
+        },
+        "resources": [
+            {
+                "type": "file",
+                "path": "/954248/islet_cartography_scrna",
+                "readOnly": false
+            },
+            {
+                "type": "file",
+                "path": "/57814/Data/scRNAseq",
+                "readOnly": false
+            }
+        ],
+        "timeAllocation": {
+            "hours": 1,
+            "minutes": 0,
+            "seconds": 0
+        },
+        "resolvedProduct": null,
+        "resolvedApplication": null,
+        "resolvedSupport": null,
+        "allowDuplicateJob": true,
+        "sshEnabled": false
+    },
+    "resolvedResources": {
+        "ingress": {
+        }
+    },
+    "machineType": {
+        "cpu": 64,
+        "memoryInGigs": 384
+    }
+}
