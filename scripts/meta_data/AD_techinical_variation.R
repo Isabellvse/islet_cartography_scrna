@@ -134,10 +134,16 @@ shrestha_study_annotation <- meta_list[["Shrestha"]] |>
                 inferred_cell_type = snakecase::to_snake_case(CellTypes)) |> 
   dplyr::select(name, sample, donor, barcode, inferred_cell_type)
 
+# In motakis, barcodes can have multiple celltype annotations, I will combine these annotations 
+# into one, so that I do not have duplicated values
 motakis_study_annotation <- icid_list[["Motakis"]] |> 
   dplyr::left_join(y = motakis_cell_type, relationship = "one-to-many") |> 
   dplyr::mutate(barcode = paste0(ic_id, "_", stringr::str_remove(barcode, ".*_"))) |> 
-  dplyr::select(name, sample, donor, barcode, inferred_cell_type)
+  dplyr::select(name, sample, donor, barcode, inferred_cell_type) |> 
+  dplyr::group_by(dplyr::pick(-inferred_cell_type)) |> 
+  dplyr::summarise(inferred_cell_type = base::paste0(BiocGenerics::unique(inferred_cell_type), 
+                                                     collapse = "_"),
+                   .groups = "drop") 
 
 tritchler_study_annotation <- icid_list[["Tritschler"]] |> 
   dplyr::left_join(y = tritchler_cell_type, relationship = "one-to-many") |> 
@@ -164,6 +170,11 @@ meta_list_sub_cols <- meta_list_sub |>
                                                islet_culture_medium = "cmrls",
                                                islet_culture_hours = (24+48) / 2
   )) |> 
+  # In camunas, donor R257 is denoted as both T2D and elevated hba1c % in the raw data
+  # (camunas_cry and camunas_facs)
+  # camunas_facs %>% dplyr::filter(donor == "R257") %>% dplyr::pull("disease") %>% unique()
+  # camunas_cry %>% dplyr::filter(donor == "R257") %>% dplyr::pull("disease") %>% unique()
+  # I will combine these annotations into one
   purrr::map_at(.at = "Camunas", ~ dplyr::mutate(.x, 
                                                  plate = as.character(plate),
                                                  islet_culture_hours = culture_time_day*24,
@@ -189,7 +200,11 @@ meta_list_sub_cols <- meta_list_sub |>
                                 -cryopreserved,
                                 -timefrom_dispersion_days) |> 
                   dplyr::rename(instrument_facs = sorting_instrument,
-                                inferred_cell_type = cell_type)) |> 
+                                inferred_cell_type = cell_type) |> 
+                  dplyr::group_by(donor)  |> 
+                  dplyr::mutate(
+                    disease = paste(base::unique(disease), collapse = "_")) %>%
+                  dplyr::ungroup())|> 
   purrr::map_at(.at = "Dai", ~ dplyr::mutate(.x, 
                                              islet_center = snakecase::to_snake_case(islet_center),
                                              islet_fresh_frozen = snakecase::to_snake_case(fresh_or_cryo),
@@ -529,5 +544,6 @@ meta_harmonized <- meta_harmonized %>%
 qs2::qs_save(meta_harmonized, here::here("islet_cartography_scrna/data/metadata_harmonized/meta_harmonized.qs2"))
 # as csv file
 vroom::vroom_write(meta_harmonized, here::here("islet_cartography_scrna/data/metadata_harmonized/meta_harmonized.csv"), delim = ",", col_names = TRUE)
+
 
 
