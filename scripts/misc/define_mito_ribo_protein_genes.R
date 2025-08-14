@@ -21,3 +21,4 @@ genes <- base::list(mito_genes = gtf_data |> dplyr::filter(seqname == "chrM") |>
 # save --------------------------------------------------------------------
 #qs2::qs_save(gtf_data, here::here("islet_cartography_scrna/genome_files/gencode.v35.annotation_gtf.qs2"))
 qs2::qs_save(genes, here::here("islet_cartography_scrna/data/quality_control/mito_ribo_protein_genes.qs2"))
+

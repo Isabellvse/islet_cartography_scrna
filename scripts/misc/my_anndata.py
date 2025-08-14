@@ -11,25 +11,22 @@ def vprint(msg, verbose = True):
     if verbose:
         print(msg)
         
-def create_directories(dir_path, verbose):
+def create_directories(dir_path):
     """
-    Create a directory if it does not already excist
+    Create a directory if it does not already exist.
 
     Args: 
         dir_path: str 
-        verbose: bool = True
 
     Returns:
         None
     """
-
-    if verbose:
-        if not os.path.isdir(dir_path):
-              os.makedirs(dir_path)
-              print(f'{dir_path} Directory created successfully!')
-        else:
-              print(f'{dir_path} Directory already exists!')
-
+    if not os.path.isdir(dir_path):
+        os.makedirs(dir_path)
+        print(f'{dir_path} Directory created successfully!')
+    else:
+        print(f'{dir_path} Directory already exists!')
+        
 # Define if data used to load raw counts should come from Gene or
 # GeneFull_Ex50pAS path
 def define_file_path_from_meta(metadata_df, verbose = False):
