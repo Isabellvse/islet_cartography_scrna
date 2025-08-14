@@ -12,6 +12,7 @@ scripts/CondaScript.sh
 scripts/strandedness/
 whitelist/
 scrna_cartography/
+scrna_cartography_py_analysis/
 scrna_cartography_clone/
 genome_files/
 data/
