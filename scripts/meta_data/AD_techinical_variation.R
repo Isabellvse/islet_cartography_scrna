@@ -349,6 +349,8 @@ meta_list_sub_cols <- meta_list_sub |>
                   dplyr::right_join(y = tritchler_study_annotation)) |> 
   purrr::map_at(.at = "Wang", ~ dplyr::mutate(.x, islet_center = snakecase::to_snake_case(islet_center),
                                                     tissue = "islet",
+                                              disease = dplyr::case_when(disease == "control" ~ "nd",
+                                                                         .default = as.character(base::tolower(disease))),
                                               islet_culture_hours = as.numeric(cultured_days)*24,
                                               islet_culture_medium = "prodo_islet_media",
                                               islet_culture_medium_glucose_milimolar = 5.8,
@@ -544,6 +546,3 @@ meta_harmonized <- meta_harmonized %>%
 qs2::qs_save(meta_harmonized, here::here("islet_cartography_scrna/data/metadata_harmonized/meta_harmonized.qs2"))
 # as csv file
 vroom::vroom_write(meta_harmonized, here::here("islet_cartography_scrna/data/metadata_harmonized/meta_harmonized.csv"), delim = ",", col_names = TRUE)
-
-
-
