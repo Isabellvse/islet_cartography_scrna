@@ -98,7 +98,40 @@ purrr::iwalk(ann_meta_data, function(files, name){vroom::vroom_write(files,
                                                col_names = TRUE)
   })
 
-rm(quality_control, meta_harmonized, meta_harmonized_list)
+
+# Make one big meta data file for the combined anndata object -------------
+combined <- dplyr::bind_rows(ann_meta_data) %>% 
+  mutate(
+    name_2 = case_when(
+      grepl("^HPAP", name) ~ "HPAP",
+      TRUE ~ as.character(name)
+    ))
+
+# Make integration id, right now HPAP is split into study,
+# but since we want to integrate by donor, and not donor_study, 
+# we need to make a new integration id, this will be by combining study number for all hpap and
+# donor number
+combined_2 <- combined |> 
+  dplyr::select(name_2, ic_id_donor, study)  |> 
+  dplyr::distinct()  |> 
+  dplyr::group_by(name_2) |> 
+  dplyr::summarise(
+    study_id = base::paste0(unique(study), collapse = ""),  # collapse into "896"
+    .groups = "drop"
+  ) |> 
+  dplyr::right_join(y=combined) |> 
+  dplyr::mutate(donor_number = str_extract(ic_id_donor, "(?<=_)\\d+$"),
+                ic_id_donor_integrate = paste("ic", study_id, donor_number, sep = "_")) |> 
+  dplyr::relocate(ic_id_donor_integrate, .after = ic_id_sample) |> 
+  dplyr::select(-name_2, -donor_number, -study_id) %>% 
+  # Also make sure that sex has harmonized annotation
+  dplyr::mutate(sex = dplyr::case_when(sex %in% c("F", "female") ~ "f",
+                                       sex %in% c("M", "male") ~ "m", 
+                                       .default = as.character(sex)))
+  
+vroom::vroom_write(combined_2, here::here("islet_cartography_scrna/data/metadata_harmonized/metadata_combined_harmonized.csv"), delim = ",", col_names = TRUE)
+                   
+rm(quality_control, meta_harmonized, meta_harmonized_list, combined)
 gc()
 
 # Test a new way to add prefix --------------------------------------------
