@@ -1,38 +1,52 @@
+##### Importing libraries ##################################################
 import pandas as pd
 import scanpy as sc
 import os
 from pathlib import Path
 from collections import defaultdict
+import anndata
+from scipy import sparse
+import pickle
+from joblib import parallel_backend
+import scvi
+from scvi.external import SysVI
+import hdf5plugin
+import traceback
+import matplotlib.pyplot as plt
+import numpy as np
 
-def vprint(msg, verbose = True):
+###### Miscellaneous functions #############################################
+def vprint(msg, verbose=True):
     """
     Helper function for verbose
     """
     if verbose:
         print(msg)
-        
+
+###### Generating Anndata obejcts ##########################################
 def create_directories(dir_path):
     """
     Create a directory if it does not already exist.
 
-    Args: 
-        dir_path: str 
+    Args:
+        dir_path: str
 
     Returns:
         None
     """
     if not os.path.isdir(dir_path):
         os.makedirs(dir_path)
-        print(f'{dir_path} Directory created successfully!')
+        print(f"{dir_path} Directory created successfully!")
     else:
-        print(f'{dir_path} Directory already exists!')
-        
+        print(f"{dir_path} Directory already exists!")
+
+
 # Define if data used to load raw counts should come from Gene or
 # GeneFull_Ex50pAS path
-def define_file_path_from_meta(metadata_df, verbose = False):
+def define_file_path_from_meta(metadata_df, verbose=False):
     """
     Define if raw counts should come from the Gene or GeneFull_Ex50pAS path
-    
+
     Args:
         metadata_df: pd.DataFrame
     Returns:
@@ -59,9 +73,17 @@ def define_file_path_from_meta(metadata_df, verbose = False):
         print("[X] No match of cell or nuclei!")
         return None
 
-def create_anndata_per_sample(sample_id, base_data_dir, metadata_path,
-    matrix_filename = "matrix.mtx", features_filename = "features.tsv", barcodes_filename = "barcodes_prefixed.tsv", 
-    metadata_barcode_col = 0, verbose = True):
+
+def create_anndata_per_sample(
+    sample_id,
+    base_data_dir,
+    metadata_path,
+    matrix_filename="matrix.mtx",
+    features_filename="features.tsv",
+    barcodes_filename="barcodes_prefixed.tsv",
+    metadata_barcode_col=0,
+    verbose=True,
+):
     """
     Create an AnnData object for a single sample, where barcodes in meta data file match barcodes in the count files.
 
@@ -74,24 +96,21 @@ def create_anndata_per_sample(sample_id, base_data_dir, metadata_path,
         barcodes_filename: str = "barcodes_prefixed.tsv",
         metadata_barcode_col: int = 0, # Column index in metadata_df that contains the barcode
         verbose: bool = True
-        
+
     Returns:
         sc.AnnData or None:
         An AnnData object from the scanpy package containing expression data and metadata,
-        or None if the processing failed or data is missing.  
+        or None if the processing failed or data is missing.
     """
 
     vprint(f" ============= Processing sample: {sample_id} =============", verbose)
 
     # Get subfolder path from meta data
-    meta = pd.read_csv(
-        f"{metadata_path}",
-        sep=",",
-        index_col=metadata_barcode_col)
-
+    meta = pd.read_csv(f"{metadata_path}", sep=",", index_col=metadata_barcode_col)
     vprint(
-        f"[OK] 'Meta data' loaded successfully with shape {
-            meta.shape} (rows, columns)", verbose)
+        f"[OK] 'Meta data' loaded successfully with shape {meta.shape} (rows, columns)",
+        verbose,
+    )
     vprint(meta.iloc[0:2, 0:3], verbose)
 
     # subset meta data to only contain sample_id
@@ -102,7 +121,8 @@ def create_anndata_per_sample(sample_id, base_data_dir, metadata_path,
 
     if subfolder is None:
         print(
-            f"[X] No valid subfolder path found for sample {sample_id}. Check your meta data or sample id! ... Skipping.")
+            f"[X] No valid subfolder path found for sample {sample_id}. Check your meta data or sample id! ... Skipping."
+        )
         return None  # Early exit
 
     # Build path to raw data
@@ -115,7 +135,8 @@ def create_anndata_per_sample(sample_id, base_data_dir, metadata_path,
     # Check if data path exists for the sample
     if not os.path.exists(sample_raw_data_path):
         print(
-            f"[X] Data path not found for {sample_id}: {sample_raw_data_path}. Skipping this sample.")
+            f"[X] Data path not found for {sample_id}: {sample_raw_data_path}. Skipping this sample."
+        )
         return None
 
     # Construct paths for matrix, features, and barcodes files
@@ -125,29 +146,36 @@ def create_anndata_per_sample(sample_id, base_data_dir, metadata_path,
 
     # Load barcodes
     bar = pd.read_csv(barcodes_file, sep="\t", index_col=0, header=None)
-    
+
     # Set index name to 0, otherwise we will have trouble saving the object later
     bar.index.name = None
 
-    vprint(f"[OK] 'barcodes' loaded for {sample_id} with shape {
-            bar.shape}. Preview:\n{
-            bar.head()}", verbose)
+    vprint(f"[OK] 'barcodes' loaded for {sample_id} with shape {bar.shape}. Preview:\n{bar.head()}", verbose)
 
     # Read expression matrix
     vprint("[..] Reading expression matrix from .mtx file...", verbose)
     X_tmp = sc.read_mtx(mtx_file)
-    vprint(f"[OK] Raw matrix loaded with shape (genes, cells): {X_tmp.X.shape}", verbose)
+    vprint(
+        f"[OK] Raw matrix loaded with shape (genes, cells): {X_tmp.X.shape}", verbose
+    )
 
     # Transpose matrix
-    vprint("[TRA] Transposing matrix to match AnnData format (cells × genes)...", verbose)
+    vprint(
+        "[TRA] Transposing matrix to match AnnData format (cells × genes)...", verbose
+    )
     X_matrix = X_tmp.X.T
-    vprint(f"[OK] Matrix transposed. New shape (cells, genes): {X_matrix.shape}", verbose)
+    vprint(
+        f"[OK] Matrix transposed. New shape (cells, genes): {X_matrix.shape}", verbose
+    )
 
     # Load features (genes)
     var_df = pd.read_csv(features_file, sep="\t", index_col=0, header=None)
     var_df.columns = ["gene_name", "feature_type"]
     var_df.index.name = None
-    vprint(f"[OK] 'features' (genes) loaded with shape {var_df.shape}. Preview:\n{var_df.head()}", verbose)
+    vprint(
+        f"[OK] 'features' (genes) loaded with shape {var_df.shape}. Preview:\n{var_df.head()}",
+        verbose,
+    )
 
     # Create AnnData object
     vprint("[..] Creating AnnData object...", verbose)
@@ -158,7 +186,9 @@ def create_anndata_per_sample(sample_id, base_data_dir, metadata_path,
 
     # Subset meta data object to only contain barcodes found in the 'barcodes'
     # file..."
-    vprint("[SUB] Subsetting metadata to barcodes found in the current sample...", verbose)
+    vprint(
+        "[SUB] Subsetting metadata to barcodes found in the current sample...", verbose
+    )
 
     # Find common barcodes
     common_barcodes = meta.index.intersection(bar.index)
@@ -167,27 +197,29 @@ def create_anndata_per_sample(sample_id, base_data_dir, metadata_path,
     meta_bar_subset = meta.loc[common_barcodes]
 
     if meta_bar_subset.empty:
-        print("[!!] Subsetting resulted in an empty metadata DataFrame for this sample. This might indicate no matching barcodes. Skipping.")
+        print(
+            "[!!] Subsetting resulted in an empty metadata DataFrame for this sample. This might indicate no matching barcodes. Skipping."
+        )
         return None
 
     vprint(f"[OK] Metadata subsetted to {meta_bar_subset.shape} cells.", verbose)
 
     # Subset AnnData object to only contain barcodes found in the subsetted
     # metadata
-    vprint("[SUB] Subsetting AnnData object to cells with matching metadata...", verbose)
+    vprint(
+        "[SUB] Subsetting AnnData object to cells with matching metadata...", verbose
+    )
 
     X_sub = X[meta_bar_subset.index].copy()
 
     vprint(
-        f"[OK] AnnData has been subset to shape: {
-            X_sub.shape} (cells × genes)", verbose)
+        f"[OK] AnnData has been subset to shape: {X_sub.shape} (cells × genes)", verbose)
 
     # Align meta_bar_subset to X_sub.obs's index order (it will only add new index if they are different)
     meta_bar_subset = meta_bar_subset.reindex(X_sub.obs.index)
 
     assert set(meta_bar_subset.index).issubset(
         set(X_sub.obs.index)
-        
     ), "Some barcodes in obs_bar are not in X_sub.obs"
     vprint("[OK] Barcodes in meta data are found in AnnData.", verbose)
 
@@ -204,7 +236,9 @@ def create_anndata_per_sample(sample_id, base_data_dir, metadata_path,
         assert meta_bar_subset.index.equals(
             X_sub.obs.index
         ), "Indices are not in the same order."
-        vprint("[OK] Indices in meta data are in the same order as the AnnData.", verbose)
+        vprint(
+            "[OK] Indices in meta data are in the same order as the AnnData.", verbose
+        )
 
         vprint("[..] Adding metadata columns from meta data to AnnData...", verbose)
 
@@ -234,7 +268,7 @@ def get_sample_ids(metadata_df):
     return sample_ids
 
 
-def build_sample_map(metadata_paths, base_data_dirs, metadata_barcode_col = 0):
+def build_sample_map(metadata_paths, base_data_dirs, metadata_barcode_col=0):
     """
     Match metadata files to their corresponding data directories
     and return a mapping from sample_id to its base_dir and metadata_path.
@@ -258,15 +292,17 @@ def build_sample_map(metadata_paths, base_data_dirs, metadata_barcode_col = 0):
 
     for metadata_path in metadata_paths:
         # Load meta data
-        df = pd.read_csv(metadata_path, sep=",", index_col= metadata_barcode_col)
+        df = pd.read_csv(metadata_path, sep=",", index_col=metadata_barcode_col)
 
         # Get sample ids from meta data
         sample_ids = get_sample_ids(df)
-        
+
         # stem = Get the final path component withot suffic (see help(Path.stem))
         # replace = Remove "_metadata" from the final part of the path components
         # (see help(Path.replace))
-        metadata_stem = Path(metadata_path).stem.replace("_metadata", "")  # e.g. 'Wang', 'Kang_nuclei'
+        metadata_stem = Path(metadata_path).stem.replace(
+            "_metadata", ""
+        )  # e.g. 'Wang', 'Kang_nuclei'
 
         # Directly match study name within the base_name_map, this means that we handle cases like 'Wang', 'Wang_Sander'
         # As they are exact matches between meta data name and base_name_map they
@@ -299,13 +335,15 @@ def build_sample_map(metadata_paths, base_data_dirs, metadata_barcode_col = 0):
         for sid in sample_ids:
             sample_map[sid] = {
                 "base_data_dir": matched_dir,
-                "metadata_path": metadata_path}
-        
+                "metadata_path": metadata_path,
+            }
+
     return sample_map
 
-def merge_samples_per_study(sample_map, output_dir, subset='yes', verbose = True):
+
+def merge_samples_per_study(sample_map, output_dir, subset="yes", verbose=True):
     """
-    Merge data from each sample per study into one anndata object, and only keep cells that have passed qc 
+    Merge data from each sample per study into one anndata object, and only keep cells that have passed qc
     cells marked with "included" from column called "excluded" and save as a h5ad file
 
     Args:
@@ -321,21 +359,20 @@ def merge_samples_per_study(sample_map, output_dir, subset='yes', verbose = True
     # Create an empty dictionary
     study_samples = defaultdict(list)
 
-    # For each sample_id, it looks up the stored metadata_path and extracts the "study name" (metadata_stem) 
+    # For each sample_id, it looks up the stored metadata_path and extracts the "study name" (metadata_stem)
     # from that path. It then uses this metadata_stem to group the sample_ids together into the study_samples dictionary.
-        
+
     for sample_id, info in sample_map.items():
-        
+
         # stem = Get the final path component without suffic (see help(Path.stem))
         # replace = Remove "_metadata" from the final part of the path components
         # (see help(Path.replace))
         metadata_stem = Path(info["metadata_path"]).stem.replace("_metadata", "")
-        
+
         # Appends a list of sample_ids grouped under the dataset name 'metadata_stem' in the study_samples dictionary.
         study_samples[metadata_stem].append(sample_id)
 
-
-    # For all samples in each study, create an an dataobject, subset it 
+    # For all samples in each study, create an an dataobject, subset it
     for study, samples in study_samples.items():
         adata_list = []
 
@@ -346,7 +383,7 @@ def merge_samples_per_study(sample_map, output_dir, subset='yes', verbose = True
                 sample_id=sample_id,
                 base_data_dir=info["base_data_dir"],
                 metadata_path=info["metadata_path"],
-                verbose=verbose
+                verbose=verbose,
             )
 
             if adata is not None:
@@ -354,14 +391,12 @@ def merge_samples_per_study(sample_map, output_dir, subset='yes', verbose = True
 
         # Merge all ann data object per study into one
         if adata_list:
-            combined_adata = sc.concat(
-                adata_list,
-                merge="same",
-                index_unique=None
-            )
+            combined_adata = sc.concat(adata_list, merge="same", index_unique=None)
 
-            if subset.lower() == 'yes':
-                combined_adata = combined_adata[combined_adata.obs.excluded == "included"].copy()
+            if subset.lower() == "yes":
+                combined_adata = combined_adata[
+                    combined_adata.obs.excluded == "included"
+                ].copy()
 
             # Save h5ad object
             save_path = os.path.join(output_dir, f"{study}.h5ad")
@@ -370,3 +405,151 @@ def merge_samples_per_study(sample_map, output_dir, subset='yes', verbose = True
             # Check that file exsist
             if os.path.isfile(save_path):
                 print(f"[OK] Saved combined AnnData for study '{study}' to {save_path}")
+
+###### Miscellaneous integration analysis ########################################
+def add_embedding(ad, embed_path, obsm_key, verbose=True):
+    """
+    Add an embedding from a CSV file into AnnData.obsm.
+    
+    Args:
+        ad (AnnData): AnnData object to modify.
+        embed_path (str): Path to CSV file with embeddings (index = obs_names).
+        obsm_key (str): Key to store in AnnData.obsm.
+        verbose (bool): Print status if True.
+    
+    Returns:
+    AnnData: Updated AnnData object with added embeddings.
+    """
+    if not os.path.exists(embed_path):
+        if verbose:
+            print(f"Missing embedding: {embed_path}")
+        return ad
+
+    embed_df = pd.read_csv(embed_path, index_col=0)
+    embed_df = embed_df.loc[ad.obs_names]  # align order
+    ad.obsm[obsm_key] = embed_df.to_numpy()
+    
+    if verbose:
+        print(f"Added embedding '{obsm_key}' with shape {embed_df.shape}.")
+    
+    return ad
+
+def neighbor_umap_integration(adata_path, verbose=True, overwrite=False):
+    """
+    Find neighbors and UMAP for integration embeddings.
+
+    Args:
+        adata_path (str): Path to an AnnData (.h5ad) object.
+        verbose (bool): Whether to print progress messages. Default is True.
+        overwrite (bool): Whether to recompute neighbors and UMAP if they already exist. Default is False.
+
+    Returns:
+        AnnData: The updated AnnData object with neighbors and UMAP embeddings.
+    """
+    # Check path exists
+    assert os.path.exists(adata_path), f"({adata_path}) does not exist!"
+
+    # Load AnnData object
+    ad = sc.read_h5ad(adata_path)
+
+    # Get embeddings (excluding default ones)
+    embed_keys = [x for x in ad.obsm.keys() if not x.startswith("X") and not x.endswith("umap")]
+    vprint(f"Embeddings keys found: {embed_keys}", verbose)
+
+    for key in embed_keys:
+        neighbors_key = f"{key}_neighbors"
+        umap_key = f"X_{key}_umap"
+
+        # Skip if already computed and overwrite is False
+        if not overwrite and neighbors_key in ad.uns and umap_key in ad.obsm:
+            vprint(f"Neighbors and UMAP for '{key}' already exist. Skipping computation.", verbose)
+            continue
+
+        vprint(f"Computing neighbors and UMAP for {key}...", verbose)
+
+        # Compute neighbors with parallelization
+        with parallel_backend("threading", n_jobs=60):
+            sc.pp.neighbors(ad, use_rep=key, key_added=neighbors_key)
+
+        # Compute UMAP
+        sc.tl.umap(ad, neighbors_key=neighbors_key)
+        ad.obsm[umap_key] = ad.obsm["X_umap"].copy()
+
+        vprint(f"Finished neighbors and UMAP for {key}...", verbose)
+    return(ad)
+
+def plot_umaps_for_adata(
+    ad,
+    colors=("technical_integration", "study_cell_annotation_harmonized"),
+    remove_unknown_for=("study_cell_annotation_harmonized",),
+    verbose=True
+):
+    """
+    Generate UMAP plots for all stored UMAP embeddings in one AnnData object,
+    using the observed categories for each color and optionally removing "unknown".
+
+    Args:
+        ad (AnnData): The AnnData object (with precomputed UMAPs in .obsm).
+        colors (tuple[str]): Observation columns to color plots by.
+        remove_unknown_for (tuple[str]): Columns for which "unknown" should be removed.
+        verbose (bool): Print progress messages.
+
+    Returns:
+        dict[str, matplotlib.figure.Figure]: Mapping {umap_key: figure}.
+    """
+    # Build pp_order for each color based on unique observed values
+    pp_order = []  # initialize once, outside the loop
+
+    for k in colors:
+        if k in ad.obs:
+            if k == 'study_cell_annotation_harmonized':
+                unique_vals = list(np.unique(ad.obs[k].values))
+                unique_vals = [x for x in unique_vals if str(x).lower() != "unknown"]
+            else:
+                unique_vals = list(np.unique(ad.obs[k].values))
+                
+            pp_order.extend(unique_vals)  # extend inside the loop
+
+    # Collect all stored UMAP embeddings
+    umap_keys = [k for k in ad.obsm.keys() if k.startswith("X_") and k.endswith("_umap")]
+    if verbose:
+        print(f"UMAP keys found: {umap_keys}")
+
+    figures = {}
+    for umap_key in umap_keys:
+        base_key = umap_key.replace("X_", "").replace("_umap", "")
+        if verbose:
+            print(f"Plotting UMAP for {base_key}...")
+
+        # Scanpy can create a multi-panel figure automatically with ncols=len(colors)
+        fig = sc.pl.embedding(
+            ad,
+            basis=umap_key,
+            color=list(colors),
+            groups=pp_order,
+            ncols=len(colors),
+            wspace=1,
+            title=[f"{base_key}\n ({c})" for c in colors],
+            show=False,
+            return_fig=True
+        )
+
+        for ax in fig.axes:
+            title_text = ax.get_title()
+            ax.set_title(title_text, wrap=True)
+
+        figures[umap_key] = fig
+
+    return figures
+
+#def load_covariate_embeddings(model_path):
+    
+    
+
+
+
+
+
+
+
+
