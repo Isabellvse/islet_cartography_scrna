@@ -409,59 +409,72 @@ meta_harmonized  <- meta_sub_id |> dplyr::select(tidyselect::all_of(meta_varianc
 # Harmonize columns -------------------------------------------------------
 
 ## Study annotation ----
-meta_harmonized <- meta_harmonized  %>%
+meta_harmonized <- meta_harmonized %>%
   dplyr::mutate(
+    study_cell_annotation_lower = stringr::str_to_lower(study_cell_annotation),
     study_cell_annotation_harmonized = dplyr::case_when(
-      # Beta cells
-      stringr::str_to_lower(study_cell_annotation) %in% c("beta", "beta cell", "all_beta", "Beta") ~ "beta",
-      
-      # Alpha cells
-      stringr::str_to_lower(study_cell_annotation) %in% c("alpha", "alpha cell", "Alpha") ~ "alpha",
-      
-      # Delta cells
-      stringr::str_to_lower(study_cell_annotation) %in% c("delta", "delta cell", "Delta") ~ "delta",
-      
-      # Gamma / PP cells
-      stringr::str_to_lower(study_cell_annotation) %in% c("gamma", "pp", "gamma/pp", "gamma cell", "PP") ~ "gamma",
-      
-      # Epsilon
-      stringr::str_to_lower(study_cell_annotation) %in% c("epsilon", "epsilon cell") ~ "epsilon",
-      
-      # Ductal cells
-      stringr::str_to_lower(study_cell_annotation) %in% c("duct", "ductal", "ductal cell", "Ductal") ~ "ductal",
-      
-      # Acinar cells
-      stringr::str_to_lower(study_cell_annotation) %in% c("acinar", "acinar cell", "Acinar") ~ "acinar",
-      
-      # Mesenchymal cells
-      stringr::str_to_lower(study_cell_annotation) %in% c("mesenchyme", "mesenchymal") ~ "mesenchymal",
-      
-      # Stellate / PSC cells
-      stringr::str_to_lower(study_cell_annotation) %in% c("stellate", "Stellate", "psc", "psc cell") ~ "stellate",
-      
-      # Endothelial cells
-      stringr::str_to_lower(study_cell_annotation) %in% c("endothelial", "endothelial cell") ~ "endothelial",
-      
-      # Immune-related
-      stringr::str_to_lower(study_cell_annotation) == "leukocyte" ~ "leukocyte",
-      stringr::str_to_lower(study_cell_annotation) %in% c("mast", "mast cell") ~ "mast",
-      stringr::str_to_lower(study_cell_annotation) =="immune" ~ "immune",
-      
-      # Schwann
-      stringr::str_to_lower(study_cell_annotation) == "schwann" ~ "schwann",
-      
-      # QC-related or uncertain
-      stringr::str_to_lower(study_cell_annotation) %in% c("fail_qc", "lost", "dropped", "masked", "not applicable") ~ "excluded",
-      
-      # Unclassified or other
-      stringr::str_to_lower(study_cell_annotation) %in% c("unclassified cell", "unclassified endocrine cell", "unsure", "none/other", "other") ~ "unknown",
-      stringr::str_to_lower(study_cell_annotation) == "mhc class ii cell" ~ "mhc_class_ii",
-      stringr::str_to_lower(study_cell_annotation) == "co-expression cell" ~ "co_expression",
       
       # NA handling
-      base::is.na(study_cell_annotation) ~ "unknown"
+      base::is.na(study_cell_annotation) ~ "unknown",
+      
+      # Beta cells
+      study_cell_annotation_lower %in% c("beta", "beta cell", "all_beta") ~ "beta",
+      
+      # Alpha cells
+      study_cell_annotation_lower %in% c("alpha", "alpha cell") ~ "alpha",
+      
+      # Delta cells
+      study_cell_annotation_lower %in% c("delta", "delta cell") ~ "delta",
+      
+      # Gamma / PP cells
+      study_cell_annotation_lower %in% c("gamma", "pp", "gamma/pp", "gamma cell") ~ "gamma",
+      
+      # Epsilon
+      study_cell_annotation_lower %in% c("epsilon", "epsilon cell") ~ "epsilon",
+      
+      # Ductal cells
+      study_cell_annotation_lower %in% c("duct", "ductal", "ductal cell") ~ "ductal",
+      
+      # Acinar cells
+      study_cell_annotation_lower %in% c("acinar", "acinar cell") ~ "acinar",
+      
+      # Mesenchymal cells
+      study_cell_annotation_lower %in% c("mesenchyme", "mesenchymal") ~ "mesenchymal",
+      
+      # Stellate / PSC cells
+      study_cell_annotation_lower %in% c("stellate", "psc", "psc cell") ~ "stellate",
+      
+      # Endothelial cells
+      study_cell_annotation_lower %in% c("endothelial", "endothelial cell") ~ "endothelial",
+      
+      # Immune-related
+      study_cell_annotation_lower == "leukocyte" ~ "leukocyte",
+      study_cell_annotation_lower %in% c("mast", "mast cell") ~ "mast",
+      study_cell_annotation_lower == "immune" ~ "immune",
+      
+      # Schwann
+      study_cell_annotation_lower == "schwann" ~ "schwann",
+      
+      # QC-related or uncertain
+      study_cell_annotation_lower %in% c("fail_qc", "lost", "dropped", "masked", "not applicable") ~ "excluded",
+      
+      # Unclassified or other
+      study_cell_annotation_lower %in% c(
+        "unclassified cell", 
+        "unclassified endocrine cell", 
+        "unsure", 
+        "none/other", 
+        "other"
+      ) ~ "unknown",
+      
+      study_cell_annotation_lower == "mhc class ii cell" ~ "mhc_class_ii",
+      study_cell_annotation_lower == "co-expression cell" ~ "co_expression",
+      
+      # Any label containing two cell types joined with "_"
+      stringr::str_detect(study_cell_annotation_lower, ".*_.*") ~ "co_expression"
     )
-  )
+  ) %>%
+  dplyr::select(-study_cell_annotation_lower)
 
 ## Ethnicity borad categories ----
 meta_harmonized  <- meta_harmonized  %>%
@@ -485,6 +498,9 @@ meta_harmonized  <- meta_harmonized  %>%
 ## Ethnicity sub categories ----
 meta_harmonized  <- meta_harmonized  %>%
   dplyr::mutate(ethnicity_sub_harmonized = dplyr::case_when(
+    # Unknown / Not Specified (handles both "na" string and actual NA)
+    is.na(ethnicity) | stringr::str_to_lower(ethnicity) == "na" ~ NA,
+    
     # Of European Descent
     stringr::str_to_lower(ethnicity) %in% c("european_american", "caucasian", "white") ~ "of_european_descent",
     
@@ -499,9 +515,6 @@ meta_harmonized  <- meta_harmonized  %>%
     stringr::str_to_lower(ethnicity) == "asian" ~ "of_asian_descent",
     stringr::str_to_lower(ethnicity) == "asian_filipino" ~ "of_filipino_descent",
     stringr::str_to_lower(ethnicity) == "asian_indian" ~ "of_indian_descent",
-    
-    # Unknown / Not Specified (handles both "na" string and actual NA)
-    is.na(ethnicity) | stringr::str_to_lower(ethnicity) == "na" ~ NA,
   ))
 
 ## Cause of death ----
@@ -546,3 +559,44 @@ meta_harmonized <- meta_harmonized %>%
 qs2::qs_save(meta_harmonized, here::here("islet_cartography_scrna/data/metadata_harmonized/meta_harmonized.qs2"))
 # as csv file
 vroom::vroom_write(meta_harmonized, here::here("islet_cartography_scrna/data/metadata_harmonized/meta_harmonized.csv"), delim = ",", col_names = TRUE)
+
+
+# meta_harmonized_list <- meta_harmonized |>
+#   # Split by study name
+#   (\(df) base::split(df, factor(df$name)))() |>
+#   # Remove columns where there is only NA values - otherwise it will not join the data properly
+#   purrr::modify_depth(1, ~ .x |> dplyr::select_if( ~ !all(is.na(.))))
+# 
+# # Divide Kang into cell and nuclei
+# meta_harmonized_list[["Kang_cell"]] <- meta_harmonized_list[["Kang"]] |>
+#   dplyr::filter(cell_nuclei == "cell") |>
+#   dplyr::mutate(name = paste0(name, "_cell"))
+# meta_harmonized_list[["Kang_nuclei"]] <- meta_harmonized_list[["Kang"]] |>
+#   dplyr::filter(cell_nuclei == "nuclei") |>
+#   dplyr::mutate(name = paste0(name, "_nuclei"))
+# meta_harmonized_list[["Kang"]] <- NULL
+# 
+# meta_harmonized_old <- qs2::qs_read(
+#   here::here(
+#     "islet_cartography_scrna/data/metadata_harmonized/meta_harmonized.qs2"
+#   )
+# )
+# 
+# 
+# meta_harmonized_old_list <- meta_harmonized_old |>
+#   # Split by study name
+#   (\(df) base::split(df, factor(df$name)))() |>
+#   # Remove columns where there is only NA values - otherwise it will not join the data properly
+#   purrr::modify_depth(1, ~ .x |> dplyr::select_if( ~ !all(is.na(.))))
+# 
+# # Divide Kang into cell and nuclei
+# meta_harmonized_old_list[["Kang_cell"]] <- meta_harmonized_old_list[["Kang"]] |>
+#   dplyr::filter(cell_nuclei == "cell") |>
+#   dplyr::mutate(name = paste0(name, "_cell"))
+# meta_harmonized_old_list[["Kang_nuclei"]] <- meta_harmonized_old_list[["Kang"]] |>
+#   dplyr::filter(cell_nuclei == "nuclei") |>
+#   dplyr::mutate(name = paste0(name, "_nuclei"))
+# meta_harmonized_old_list[["Kang"]] <- NULL
+# 
+# all.equal(names(meta_harmonized), names(meta_harmonized_old))
+# map2(meta_harmonized_list, meta_harmonized_old_list, all.equal)
