@@ -7,6 +7,9 @@ create_directories(here::here("islet_cartography_scrna/data/metadata_harmonized/
 set.seed(1000)
 
 # Load --------------------------------------------------------------------
+### Multiome rna and atac barcode translation
+bar_translate <- vroom::vroom(here::here("islet_cartography_scrna/whitelist/737K-arc-v1-translation.csv"))
+
 ## list of IC IDS ----
 icid_list <- qs2::qs_read(here::here("islet_cartography_scrna/data/metadata/id_list.qs2"))
 
@@ -77,8 +80,31 @@ tritchler_cell_type <- vroom::vroom(here::here("islet_cartography_scrna/data_raw
                                   col_names = TRUE) |> 
   dplyr::select(barcode, donor = id, inferred_cell_type = louvain_anno_broad)
 
+# Wang_Sander
+# wang_sander_cell_type <- vroom::vroom(here::here("islet_cartography_scrna/data_raw/meta/Wang_Sander/multiome_labels(1) (1).csv"), 
+#              col_names = TRUE) %>% 
+#   dplyr::select(barcode, description_id = description, inferred_cell_type) %>% 
+#   dplyr::mutate(inferred_cell_type = base::tolower(inferred_cell_type),
+#                 barcode = stringr::str_replace(barcode, "#", "_"),
+#                 description_id = stringr::str_remove(description_id, "_")) %>% 
+#   dplyr::select(barcode, library_id_atac = description_id, inferred_cell_type)
 
-## Missing meta data ----
+wang_sander_cell_type <- vroom::vroom(here::here("islet_cartography_scrna/data_raw/meta/Wang_Sander/multiome_RNA_beta_subtype.csv"), 
+                                      col_names = TRUE) %>% 
+  dplyr::select(barcode = X, inferred_cell_type = subtype) %>% 
+  dplyr::mutate(inferred_cell_type = stringr::str_extract(inferred_cell_type, "beta"),
+                id = stringr::str_extract(barcode, "[^_]+"),
+                barcode = stringr::str_remove(barcode, "-1"))
+
+# 
+# # Load raw meta data and combine with celltype
+# wang_raw <- GEOquery::getGEO(filename = here("islet_cartography_scrna/data_raw/meta/Wang_Sander/GSE200044_series_matrix.txt"), getGPL = F)
+# wang_raw<- Biobase::phenoData(wang_raw)@data %>% 
+#   dplyr::filter(grepl("ATAC", description)) %>% 
+#   dplyr::select(library_id_atac = `library id:ch1`, id = `sample id:ch1`) %>% 
+#   dplyr::left_join(wang_sander_cell_type)
+
+  ## Missing meta data ----
 # Mauvais
 # Loaded the seurat object from GEO and saved as a csv file - removed again as it is large
 # https://www.ncbi.nlm.nih.gov/geo/download/?acc=GSE266291&format=file&file=GSE266291%5Fprocessed%5Frna%2Eqs%2Egz
@@ -149,6 +175,14 @@ tritchler_study_annotation <- icid_list[["Tritschler"]] |>
   dplyr::left_join(y = tritchler_cell_type, relationship = "one-to-many") |> 
   dplyr::mutate(barcode = paste0(ic_id, "_", stringr::str_remove(barcode, "-(.*)"))) |> 
   dplyr::select(name, donor, barcode, inferred_cell_type)
+
+wang_sander_annotation <- meta_list[["Wang_Sander"]] %>% 
+  dplyr::select(donor, library_id, id) %>% 
+  dplyr::left_join(y = wang_sander_cell_type) |> 
+  dplyr::left_join(y = icid_list[["Wang_Sander"]]) |> 
+  dplyr::mutate(barcode = stringr::str_remove(barcode, ".*_")) |> 
+  dplyr::mutate(barcode = paste0(ic_id, "_", stringr::str_remove(barcode, "^[^_]+_"))) |> 
+  dplyr::select(name, sample, donor, barcode, inferred_cell_type)
 
 # Preprocess --------------------------------------------------------------
 ## Select columns to keep ----
@@ -358,7 +392,8 @@ meta_list_sub_cols <- meta_list_sub |>
                   dplyr::select(-cultured_days)) |> 
   purrr::map_at(.at = "Wang_Sander", ~ dplyr::mutate(.x, islet_center = snakecase::to_snake_case(islet_center),
                                                     tissue = "islet",
-                                                    islet_fresh_frozen = "frozen")) |> 
+                                                    islet_fresh_frozen = "frozen") |> 
+                  dplyr::right_join(y = wang_sander_annotation)) |> 
   purrr::map_at(.at = "Xin", ~ dplyr::mutate(.x, islet_center = "prodo_laboratories",
                                                      tissue = "islet")) |> 
   purrr::map_at(.at = "Xin_Diabetes", ~ dplyr::mutate(.x, islet_center = "prodo_laboratories",
@@ -445,7 +480,7 @@ meta_harmonized <- meta_harmonized %>%
       study_cell_annotation_lower %in% c("stellate", "psc", "psc cell") ~ "stellate",
       
       # Endothelial cells
-      study_cell_annotation_lower %in% c("endothelial", "endothelial cell") ~ "endothelial",
+      study_cell_annotation_lower %in% c("endothelial", "endothelial cell", "ec") ~ "endothelial",
       
       # Immune-related
       study_cell_annotation_lower == "leukocyte" ~ "leukocyte",
@@ -471,7 +506,10 @@ meta_harmonized <- meta_harmonized %>%
       study_cell_annotation_lower == "co-expression cell" ~ "co_expression",
       
       # Any label containing two cell types joined with "_"
-      stringr::str_detect(study_cell_annotation_lower, ".*_.*") ~ "co_expression"
+      stringr::str_detect(study_cell_annotation_lower, ".*_.*") ~ "co_expression",
+      
+      # Catch all 
+      .default = "unknown"
     )
   ) %>%
   dplyr::select(-study_cell_annotation_lower)
@@ -554,6 +592,13 @@ meta_harmonized <- meta_harmonized %>%
       .default = as.character(cause_of_death_broad_harmonized)
     )
   )
+
+## Disease ----
+meta_harmonized <- meta_harmonized %>%
+  dplyr::mutate(
+    disease_harmonized = dplyr::case_when(disease == "nd" ~ "nd",
+                                        disease == "pre" ~ "pre",
+                                        grepl("t2d", disease) ~ "t2d"))
 # Save --------------------------------------------------------------------
 # as qs object
 qs2::qs_save(meta_harmonized, here::here("islet_cartography_scrna/data/metadata_harmonized/meta_harmonized.qs2"))

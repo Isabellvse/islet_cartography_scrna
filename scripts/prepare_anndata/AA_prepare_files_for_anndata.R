@@ -134,39 +134,39 @@ vroom::vroom_write(combined_2, here::here("islet_cartography_scrna/data/metadata
 rm(quality_control, meta_harmonized, meta_harmonized_list, combined)
 gc()
 
-# Test a new way to add prefix --------------------------------------------
-meta <- purrr::imap_dfr(ann_meta_data, ~ dplyr::select(.x, name, sample, ic_id_sample, platform, cell_nuclei)) |> 
-  dplyr::mutate(name = dplyr::case_when(name %in% c("Kang_nuclei", "Kang_cell") ~ "Kang",
-                                        .default = as.character(name))) %>% 
-  dplyr::distinct() |> 
-  dplyr::mutate(path = purrr::pmap_chr(list(name, sample, cell_nuclei), function(name, sample, cell_nuclei){
-    base::paste0("/work/scRNAseq/", name, "/Preprocessed/", sample, "/Solo.out/",
-                 ifelse(cell_nuclei == "cell", "Gene", "GeneFull_Ex50pAS"), "/raw/barcodes.tsv")
-    
-  }),
-  exists = file.exists(path),
-  save_path = stringr::str_replace(path, "barcodes.tsv", "barcodes_prefixed.tsv"))
-
-sink(here::here("islet_cartography_scrna/AA_prepare_files_for_anndata.txt"))
-meta |> 
-  (\(df) base::split(df, factor(df$path)))() |> 
-  purrr::walk(
-    .f = function(df) {
-      process_barcode_files(
-        exists = df$exists,
-        path = df$path,
-        ic_id_sample = df$ic_id_sample,
-        platform = df$platform,
-        save_path = df$save_path
-      )
-    }
-  )
-sink()
-
-
-# Check that all files have been generated --------------------------------
-meta <- meta %>% dplyr::mutate(
-  prefix_exists = file.exists(save_path))
-
-table(meta$prefix_exists)
+# # Test a new way to add prefix --------------------------------------------
+# meta <- purrr::imap_dfr(ann_meta_data, ~ dplyr::select(.x, name, sample, ic_id_sample, platform, cell_nuclei)) |> 
+#   dplyr::mutate(name = dplyr::case_when(name %in% c("Kang_nuclei", "Kang_cell") ~ "Kang",
+#                                         .default = as.character(name))) %>% 
+#   dplyr::distinct() |> 
+#   dplyr::mutate(path = purrr::pmap_chr(list(name, sample, cell_nuclei), function(name, sample, cell_nuclei){
+#     base::paste0("/work/scRNAseq/", name, "/Preprocessed/", sample, "/Solo.out/",
+#                  ifelse(cell_nuclei == "cell", "Gene", "GeneFull_Ex50pAS"), "/raw/barcodes.tsv")
+#     
+#   }),
+#   exists = file.exists(path),
+#   save_path = stringr::str_replace(path, "barcodes.tsv", "barcodes_prefixed.tsv"))
+# 
+# sink(here::here("islet_cartography_scrna/AA_prepare_files_for_anndata.txt"))
+# meta |> 
+#   (\(df) base::split(df, factor(df$path)))() |> 
+#   purrr::walk(
+#     .f = function(df) {
+#       process_barcode_files(
+#         exists = df$exists,
+#         path = df$path,
+#         ic_id_sample = df$ic_id_sample,
+#         platform = df$platform,
+#         save_path = df$save_path
+#       )
+#     }
+#   )
+# sink()
+# 
+# 
+# # Check that all files have been generated --------------------------------
+# meta <- meta %>% dplyr::mutate(
+#   prefix_exists = file.exists(save_path))
+# 
+# table(meta$prefix_exists)
 # TRUE

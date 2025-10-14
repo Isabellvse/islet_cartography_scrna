@@ -1,19 +1,37 @@
 ##### Importing libraries ##################################################
-import pandas as pd
-import scanpy as sc
 import os
 from pathlib import Path
 from collections import defaultdict
-import anndata
 from scipy import sparse
-import pickle
+import re
+import gc
+
 from joblib import parallel_backend
+import subprocess
+
+import pandas as pd
+import numpy as np
+import scanpy as sc
+import anndata
+
 import scvi
 from scvi.external import SysVI
-import hdf5plugin
+
 import traceback
+
+import pickle
+import hdf5plugin
+
+
 import matplotlib.pyplot as plt
-import numpy as np
+import seaborn as sns
+
+import statsmodels.api as sm
+from statsmodels.stats.stattools import durbin_watson
+from statsmodels.stats.diagnostic import het_breuschpagan
+from statsmodels.stats.outliers_influence import variance_inflation_factor
+from scipy.stats import shapiro
+
 
 ###### Miscellaneous functions #############################################
 def vprint(msg, verbose=True):
@@ -434,122 +452,163 @@ def add_embedding(ad, embed_path, obsm_key, verbose=True):
     
     return ad
 
-def neighbor_umap_integration(adata_path, verbose=True, overwrite=False):
-    """
-    Find neighbors and UMAP for integration embeddings.
 
-    Args:
-        adata_path (str): Path to an AnnData (.h5ad) object.
-        verbose (bool): Whether to print progress messages. Default is True.
-        overwrite (bool): Whether to recompute neighbors and UMAP if they already exist. Default is False.
+###### Covariate regression #############################################
+def get_covariate_embedding(model_path, save_path = None, scpoli = None, adata_path = None, embed_name="ic_id_donor_integrate"):
+    
+    methods = ['scvi', 'sysvi', 'scpoli']
+    
+    model_path = Path(model_path)
+    filename = model_path.stem
 
-    Returns:
-        AnnData: The updated AnnData object with neighbors and UMAP embeddings.
-    """
-    # Check path exists
-    assert os.path.exists(adata_path), f"({adata_path}) does not exist!"
+    # From model path, identify the integration method that was used
+    method = next((m for m in methods if m in filename), None)
+    base_name = filename
 
-    # Load AnnData object
-    ad = sc.read_h5ad(adata_path)
+    if method == 'scpoli':
+        print(f'Loading ScPoli')
+        result_scpoli = subprocess.run([
+            "conda", "run", "-p", scpoli, "python", "load_covariate_embedding_scpoli.py",
+            str(model_path), str(save_path), embed_name, base_name
+        ],capture_output=True, text=True)
 
-    # Get embeddings (excluding default ones)
-    embed_keys = [x for x in ad.obsm.keys() if not x.startswith("X") and not x.endswith("umap")]
-    vprint(f"Embeddings keys found: {embed_keys}", verbose)
+        csv_path = os.path.join(save_path, f"{base_name}.csv")
+        covariate = pd.read_csv(csv_path, index_col=0)
 
-    for key in embed_keys:
-        neighbors_key = f"{key}_neighbors"
-        umap_key = f"X_{key}_umap"
+        # Remove file from temporary path
+        os.remove(csv_path)
+        
+    if method == 'scvi':
+        # Get number of hvgs from base name
+        match = re.search(r"model_(\d+)", base_name)
+        gene_number = int(match.group(1)) if match else 1
 
-        # Skip if already computed and overwrite is False
-        if not overwrite and neighbors_key in ad.uns and umap_key in ad.obsm:
-            vprint(f"Neighbors and UMAP for '{key}' already exist. Skipping computation.", verbose)
-            continue
+        # Define path for adata object 
+        adata_dir = os.path.join(adata_path, f'adata_{gene_number}_hvg.h5ad')
 
-        vprint(f"Computing neighbors and UMAP for {key}...", verbose)
+        # Load adata object
+        ad = sc.read_h5ad(adata_dir)
 
-        # Compute neighbors with parallelization
-        with parallel_backend("threading", n_jobs=60):
-            sc.pp.neighbors(ad, use_rep=key, key_added=neighbors_key)
+        model = scvi.model.SCVI.load(model_path, ad)
+        
+        # Make sure the batch column is categorical
+        ad.obs[embed_name] = ad.obs[embed_name].astype('category')
+        
+        # Extract the learned batch embeddings (n_batches × embedding_dim)
+        emb = model.module.embeddings_dict['batch'].weight.detach().cpu().numpy()
+        
+        # Get the batch names in the correct order
+        batch_names = ad.obs[embed_name].cat.categories
 
-        # Compute UMAP
-        sc.tl.umap(ad, neighbors_key=neighbors_key)
-        ad.obsm[umap_key] = ad.obsm["X_umap"].copy()
-
-        vprint(f"Finished neighbors and UMAP for {key}...", verbose)
-    return(ad)
-
-def plot_umaps_for_adata(
-    ad,
-    colors=("technical_integration", "study_cell_annotation_harmonized"),
-    remove_unknown_for=("study_cell_annotation_harmonized",),
-    verbose=True
-):
-    """
-    Generate UMAP plots for all stored UMAP embeddings in one AnnData object,
-    using the observed categories for each color and optionally removing "unknown".
-
-    Args:
-        ad (AnnData): The AnnData object (with precomputed UMAPs in .obsm).
-        colors (tuple[str]): Observation columns to color plots by.
-        remove_unknown_for (tuple[str]): Columns for which "unknown" should be removed.
-        verbose (bool): Print progress messages.
-
-    Returns:
-        dict[str, matplotlib.figure.Figure]: Mapping {umap_key: figure}.
-    """
-    # Build pp_order for each color based on unique observed values
-    pp_order = []  # initialize once, outside the loop
-
-    for k in colors:
-        if k in ad.obs:
-            if k == 'study_cell_annotation_harmonized':
-                unique_vals = list(np.unique(ad.obs[k].values))
-                unique_vals = [x for x in unique_vals if str(x).lower() != "unknown"]
-            else:
-                unique_vals = list(np.unique(ad.obs[k].values))
-                
-            pp_order.extend(unique_vals)  # extend inside the loop
-
-    # Collect all stored UMAP embeddings
-    umap_keys = [k for k in ad.obsm.keys() if k.startswith("X_") and k.endswith("_umap")]
-    if verbose:
-        print(f"UMAP keys found: {umap_keys}")
-
-    figures = {}
-    for umap_key in umap_keys:
-        base_key = umap_key.replace("X_", "").replace("_umap", "")
-        if verbose:
-            print(f"Plotting UMAP for {base_key}...")
-
-        # Scanpy can create a multi-panel figure automatically with ncols=len(colors)
-        fig = sc.pl.embedding(
-            ad,
-            basis=umap_key,
-            color=list(colors),
-            groups=pp_order,
-            ncols=len(colors),
-            wspace=1,
-            title=[f"{base_key}\n ({c})" for c in colors],
-            show=False,
-            return_fig=True
+        # Sanity check (if the cat codes for embed name are not equal to _scvi_batch throw an error)
+        # This is to ensure that the row names are put in correctly
+        codes = ad.obs[embed_name].cat.codes.values
+        assert np.array_equal(ad.obs['_scvi_batch'].values, codes), (
+            f"Mismatch detected: `_scvi_batch` does not align with `{embed_name}` categorical codes."
         )
 
-        for ax in fig.axes:
-            title_text = ax.get_title()
-            ax.set_title(title_text, wrap=True)
+        # Put into a DataFrame 
+        covariate = pd.DataFrame(
+            emb,
+            index=batch_names,
+            columns=[f"{i}" for i in range(emb.shape[1])]
+        )
+    if method == 'sysvi':
+        match = re.search(r"model_(\d+)", base_name)
+        gene_number = int(match.group(1)) if match else 1
+        
+        adata_dir = os.path.join(adata_path, f'adata_{gene_number}_hvg.h5ad')
 
-        figures[umap_key] = fig
+        # Load adata object
+        ad = sc.read_h5ad(adata_dir)
+        
+        model = SysVI.load(model_path, ad)
 
-    return figures
+        # Make sure the batch column is categorical
+        ad.obs[embed_name] = ad.obs[embed_name].astype('category')
+        
+        # Extract the learned batch embeddings (n_batches × embedding_dim)
+        emb = model.module.embeddings_dict['cov0'].weight.detach().cpu().numpy()
+        
+        # Get the batch names in the correct order
+        batch_names = ad.obs[embed_name].cat.categories
+        
+        # Sanity check (if the cat codes for embed name are not equal to _scvi_batch throw an error)
+        # This is to ensure that the row names are put in correctly
+        codes = ad.obs[embed_name].cat.codes.values
+        assert np.array_equal(ad.obsm['_scvi_extra_categorical_covs'][embed_name].values, codes), (
+            f"Mismatch detected: `_scvi_batch` does not align with `{embed_name}` categorical codes."
+        )
 
-#def load_covariate_embeddings(model_path):
+        # Put into a DataFrame 
+        covariate = pd.DataFrame(
+            emb,
+            index=batch_names,
+            columns=[f"{i}" for i in range(emb.shape[1])]
+        )
+    return covariate
+
+
+###### Plotting functions ########################################
+def my_color_palette(categories, show_colors=False):
+    # Number of categories
+    n_categories = len(categories)
     
+    # Define 20 colors
+    colors20 = ["#1F77B4", "#AEC7E8", "#FF7F0E", "#FFBB78", "#2CA02C",
+                "#98DF8A", "#D62728", "#FF9896", "#9467BD", "#C5B0D5",
+                "#8C564B", "#C49C94", "#E377C2", "#F7B6D2", "#7F7F7F",
+                "#C7C7C7", "#BCBD22", "#DBDB8D", "#17BECF", "#9EDAE5"]
     
+    # Pick colors for categories
+    palette = {cat: colors20[i % len(colors20)] for i, cat in enumerate(categories)}
+    
+    if show_colors:
+        import matplotlib.pyplot as plt
+        plt.figure(figsize=(8, 1))
+        plt.bar(range(n_categories), [1]*n_categories, color=[palette[cat] for cat in categories])
+        plt.xticks(range(n_categories), categories, rotation=90)
+        plt.yticks([])
+        plt.show()
+    
+    return palette
 
+def umap_facet(ad, variable, exclude_key = None, ncols = 6, pt_size = 5, show_colors = False, exclude = False, umap_key = "X_umap"):
+    # Number of cells in adata object
+    n_cells = ad.shape[0]
+    marker_size = 120000 / n_cells
 
+    # Get UMAP1 and UMAP2
+    df_umap = pd.DataFrame(ad.obsm[umap_key], columns=['UMAP1','UMAP2'])
 
+    df_umap[variable] = ad.obs[variable].astype(str).values
 
+    if exclude:
+        df_plot = df_umap[df_umap[variable].str.lower() != exclude_key].copy() 
+    else:
+        df_plot = df_umap.copy()
+        
+    # Define categories to plot
+    categories = df_plot[variable].unique()
 
+    # Get palette 
+    palette =  my_color_palette(categories = categories, show_colors= show_colors)
+    
+    # Add a column that will be used for faceting: which is the category itself
+    df_plot['facet'] = df_plot[variable]
 
+    # Generate FacetGrid
+    g = sns.FacetGrid(df_plot, col="facet", col_wrap=ncols, sharex=True, sharey=True)
 
+    for ax, cat in zip(g.axes.flatten(), categories):
+        # grey background
+        ax.scatter(df_umap['UMAP1'], df_umap['UMAP2'], s=marker_size, color='lightgrey', alpha=0.6, linewidths=0, rasterized=True)
+        # overlay colored points
+        subset = df_plot[df_plot[variable] == cat]
+        ax.scatter(subset['UMAP1'], subset['UMAP2'], s=marker_size*pt_size, color=palette[cat], linewidths=0, rasterized=True)
 
+        ax.set_axis_off()
+        ax.set_title(cat)
+
+    # Return the matplotlib figure
+    return g.fig, palette

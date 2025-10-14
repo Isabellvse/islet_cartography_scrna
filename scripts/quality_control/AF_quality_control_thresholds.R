@@ -27,7 +27,8 @@ quality_met <- purrr::map(paths, ~ vroom::vroom(.x, delim = ",", col_names = TRU
       dplyr::across(.cols = tidyselect::starts_with("ic_id_"), .fns = as.character)
     ) %>%
     dplyr::ungroup() %>%
-    # Removed failed samples from barcode
+    # Removed failed samples from barcode - as well as those from Son that was a failed sample anyway.
+    # Don't want to spend time generating thresholds for those 
     dplyr::filter(!ic_id %in% c("ic_25_11_11", "ic_25_7_7"), !donor == "excluded"))
 
 ## Thresholds
