@@ -13,6 +13,7 @@ set.seed(1000)
 
 # Otherwise load this:
 gtf_data <- qs2::qs_read(here::here("islet_cartography_scrna/genome_files/gencode.v35.annotation_gtf.qs2"))
+
 # get genes ---------------------------------------------------------------
 genes <- base::list(mito_genes = gtf_data |> dplyr::filter(seqname == "chrM") |> dplyr::pull(gene_id) |> unique(),
                     ribo_genes = gtf_data |> dplyr::filter(gene_type == "rRNA") |> dplyr::pull(gene_id) |> unique(),
@@ -34,6 +35,21 @@ ensembl_gene <- gtf_data |>
 
 vroom::vroom_write(ensembl_gene, 
                    here::here("islet_cartography_scrna/genome_files/gene_id_map.csv"),
+                   delim = ",", 
+                   col_names = TRUE)
+
+
+# Gene ensembl to entrez id map -------------------------------------------
+entrez_gene <- ensembl_gene
+
+entrez_gene$entrez_id <- AnnotationDbi::mapIds(org.Hs.eg.db::org.Hs.eg.db,
+                      keys = entrez_gene $gene_name_unique,
+                      column = "ENTREZID",
+                      keytype = "SYMBOL",
+                      multiVals = "first")
+
+vroom::vroom_write(entrez_gene, 
+                   here::here("islet_cartography_scrna/genome_files/gene_entrez_map.csv"),
                    delim = ",", 
                    col_names = TRUE)
 # marker genes ------------------------------------------------------------
