@@ -24,6 +24,7 @@ import hdf5plugin
 
 
 import matplotlib.pyplot as plt
+from matplotlib.colors import LinearSegmentedColormap
 import seaborn as sns
 
 import statsmodels.api as sm
@@ -573,7 +574,55 @@ def my_color_palette(categories, show_colors=False):
     
     return palette
 
-def umap_facet(ad, variable, exclude_key = None, ncols = 6, pt_size = 5, show_colors = False, exclude = False, umap_key = "X_umap"):
+def umap_single(ad, variable, exclude_key=None, pt_size=1, show_colors=False, exclude=False, umap_key="X_umap", add_legend = True):
+    # number of cells
+    n_cells = ad.shape[0]
+    marker_size = 120000 / n_cells
+
+    # build dataframe
+    df_umap = pd.DataFrame(ad.obsm[umap_key], columns=['UMAP1', 'UMAP2'])
+    df_umap[variable] = ad.obs[variable].astype(str).values
+
+    # optionally exclude category
+    if exclude and exclude_key is not None:
+        df_plot = df_umap[df_umap[variable].str.lower() != exclude_key.lower()].copy()
+    else:
+        df_plot = df_umap.copy()
+
+    # categories and color palette
+    categories = df_plot[variable].unique()
+    palette = my_color_palette(categories=categories, show_colors=show_colors)
+
+    # map each point to its color
+    colors = df_plot[variable].map(palette)
+
+    # plot
+    fig, ax = plt.subplots(figsize=(6, 5))
+
+    # grey background
+    ax.scatter(df_umap['UMAP1'], df_umap['UMAP2'],
+               s=marker_size, color='lightgrey', alpha=0.6,
+               linewidths=0, rasterized=True)
+
+    # colored overlay
+    ax.scatter(df_plot['UMAP1'], df_plot['UMAP2'],
+               s=marker_size * pt_size, color =colors,
+               linewidths=0, rasterized=True)
+
+    # Add legend
+    if add_legend:
+        markers = [plt.Line2D([0,0],[0,0], color=color, marker='o', linestyle='') for color in palette.values()]
+        leg = plt.legend(markers, palette.keys(), numpoints=1, loc='center left', bbox_to_anchor=(1.0, 0.5))
+        leg.get_frame().set_linewidth(0.0)
+        fig.add_artist(leg)
+    
+
+    ax.set_axis_off()
+    ax.set_title(variable)
+
+    return ax, palette
+
+def umap_facet(ad, variable, exclude_key = None, ncols = 6, pt_size = 1, show_colors = False, exclude = False, umap_key = "X_umap"):
     # Number of cells in adata object
     n_cells = ad.shape[0]
     marker_size = 120000 / n_cells
