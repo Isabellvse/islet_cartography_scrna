@@ -13,6 +13,8 @@ scripts/strandedness/
 whitelist/
 scrna_cartography/
 scrna_cartography_py_analysis/
+scrna_cartography_py_azimuth/
+scrna_cartography_py_benchmark/
 scrna_cartography_clone/
 scrna_cartography_scpoli/
 genome_files/
