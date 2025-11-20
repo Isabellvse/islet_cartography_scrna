@@ -556,10 +556,11 @@ def my_color_palette(categories, show_colors=False):
     n_categories = len(categories)
     
     # Define 20 colors
-    colors20 = ["#1F77B4", "#AEC7E8", "#FF7F0E", "#FFBB78", "#2CA02C",
+    colors20 = ["#1F77B4", "#AEC7E8", "#EE7733", "#FFBB78", "#2CA02C",
                 "#98DF8A", "#D62728", "#FF9896", "#9467BD", "#C5B0D5",
-                "#8C564B", "#C49C94", "#E377C2", "#F7B6D2", "#7F7F7F",
-                "#C7C7C7", "#BCBD22", "#DBDB8D", "#17BECF", "#9EDAE5"]
+                "#8C564B", "#C49C94", "#E377C2", "#F7B6D2", "#895129",
+                "#0000FF", "#BCBD22", "#DBDB8D", "#17BECF", "#9EDAE5",
+                "#FFF200", "#009988", "#EE3377", "#3D2412"]
     
     # Pick colors for categories
     palette = {cat: colors20[i % len(colors20)] for i, cat in enumerate(categories)}
