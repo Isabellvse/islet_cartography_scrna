@@ -961,6 +961,25 @@ my_theme <- function() {
     )
 }
 
+
+my_theme_void <- function() {
+  ggplot2::theme_void() +
+    ggplot2::theme(
+      strip.background = element_blank(),
+      plot.title = element_text(size = 8, hjust = 0.5),
+      legend.text = element_text(size = 4),
+      legend.title = element_text(size = 4),
+      legend.key.size = unit(0.3, "cm"),
+      strip.text = element_text(size=5),
+      plot.caption = element_text(size = 4, hjust = 0.5),
+      plot.subtitle = element_text(size = 6, hjust = 0.5),
+      panel.background = element_rect(fill = "transparent"),
+      plot.background = element_rect(fill = "transparent", color = NA),
+      legend.background = element_rect(fill = "transparent", color = NA),
+      legend.box.background = element_rect(fill = "transparent", color = NA)
+    )
+}
+
 plot_rank <- function(rank, threshold, title, non_empty) {
   p <- rank |>
     dplyr::mutate(

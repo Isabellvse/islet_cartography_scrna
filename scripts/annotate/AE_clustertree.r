@@ -1,4 +1,10 @@
-# thank you to Luke Zappia: https://lazappi.id.au/posts/2017-07-19-building-a-clustering-tree/
+# thank you to Luke Zappia: 
+# https://lazappi.id.au/posts/2017-07-19-building-a-clustering-tree/
+
+# Description -------------------------------------------------------------
+# Generate clustertree of clusters 
+base::source(here::here("islet_cartography_scrna/scripts/misc/set_up.R"))
+set.seed(1000)
 
 # Graphs
 library(igraph)
@@ -9,6 +15,10 @@ library(viridis)
 
 # Data manipulation
 library(tidyverse)
+
+clusterings <- vroom::vroom(here::here("islet_cartography_scrna/data/annotate/files/leiden_clusterings.csv")) |> 
+  tibble::column_to_rownames("barcode") |> 
+  dplyr::rename_all(~stringr::str_replace(., "leiden_", "res."))
 
 getEdges <- function(clusterings) {
 
@@ -62,14 +72,10 @@ getEdges <- function(clusterings) {
 
     # Bind the results from the different resolutions together
     transitions <- do.call("rbind", transitions)
-
-    # Tidy everything up
-    levs <- sort(as.numeric(levels(transitions$ToClust)))
-    transitions <- transitions %>%
-        mutate(FromClust = factor(FromClust,
-                                    levels = levs))  %>%
-        mutate(ToClust = factor(ToClust, levels = levs))
-
+    
+    transitions$FromClust <- factor(transitions$FromClust)
+    transitions$ToClust   <- factor(transitions$ToClust)
+    
     return(transitions)
 }
 
@@ -152,18 +158,20 @@ print(graph)
 ## [21] R0.9C3->R1.2C3 R0.9C4->R1.2C4 R0.9C5->R1.2C5
 
 # Plot our graph using the `tree` layout
+pdf(here::here("islet_cartography_scrna/data/annotate/plot/clustertree.pdf"),
+    width = 4, height = 4)
 ggraph(graph, layout = "tree") +
     # Plot the edges, colour is the number of cells and transparency is the
     # proportion contribution to the new cluster
     geom_edge_link(arrow = arrow(length = unit(1, 'mm')),
-                    end_cap = circle(3.5, "mm"), edge_width = 1,
+                    end_cap = circle(2, "mm"), edge_width = 0.5,
                     aes(colour = log(TransCount), alpha = TransPropTo)) +
     # Plot the nodes, size is the number of cells
     geom_node_point(aes(colour = factor(Res),
                         size = Size)) +
-    geom_node_text(aes(label = Cluster), size = 3) +
+    geom_node_text(aes(label = Cluster), size = 1) +
     # Adjust the scales
-    scale_size(range = c(4, 15)) +
+    scale_size(range = c(1, 5)) +
     scale_edge_colour_gradientn(colours = viridis(100)) +
     # Add legend labels
     guides(size = guide_legend(title = "Cluster Size", title.position = "top"),
@@ -174,5 +182,6 @@ ggraph(graph, layout = "tree") +
             edge_alpha = guide_legend(title = "Cluster Prop",
                                         title.position = "top", nrow = 2)) +
     # Remove the axes as they don't really mean anything
-    theme_void() +
-    theme(legend.position = "bottom")
+  my_theme_void() +
+  theme(legend.position = "right")
+dev.off()
