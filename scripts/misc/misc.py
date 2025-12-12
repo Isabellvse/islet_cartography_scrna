@@ -51,12 +51,11 @@ def set_my_theme():
     })
 
 
-def mouse_2_human(df, mouse_col='mouse_symbol', human_col='human_symbol'):
+def mouse_2_human(df, mouse_col='mouse_symbol'):
     """
     Parameters:
     df (pd.DataFrame): DataFrame containing mouse genes
     mouse_col (str): Column name for mouse gene symbols
-    human_col (str): Column name for human gene symbols to add
 
     Returns:
         pd.DataFrame: Original DataFrame with an additional column for human orthologs
@@ -82,7 +81,7 @@ def mouse_2_human(df, mouse_col='mouse_symbol', human_col='human_symbol'):
     gene_map.query("`Gene name` in @mouse_genes")
     
     # Remove missing human orthologs
-    gene_map = gene_map.query("`Human gene name`.notna() and `Human gene name` != ''")
+    gene_map = gene_map.query("`Human gene name`.notna() and `Human gene name` != '' and `Human gene name` != 'nan'")
     
     # Prefer 1:1 orthologs, then highest percent identity
     gene_map = (gene_map
@@ -96,13 +95,16 @@ def mouse_2_human(df, mouse_col='mouse_symbol', human_col='human_symbol'):
     # Merge back with original df
     df_mapped = df.merge(
         gene_map[['Gene name', 'Human gene name']]
-        .rename(columns={'Human gene name': human_col}),
+        .rename(columns={'Human gene name': 'human_symbol'}),
         left_on=mouse_col,
         right_on='Gene name',
         how='left'
     ).drop(columns=['Gene name'])
     
-    # Optional: remove duplicates in human genes
-    df_mapped = df_mapped.drop_duplicates(subset=[human_col])
+    # Remove duplicates in human genes
+    df_mapped = df_mapped.drop_duplicates(subset=['human_symbol'])
+
+    # Remove missing human symbols
+    df_mapped = df_mapped.query("human_symbol.notna() and human_symbol != '' and human_symbol != 'nan'")
     
     return df_mapped
