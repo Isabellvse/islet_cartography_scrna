@@ -575,7 +575,7 @@ def my_color_palette(categories, show_colors=False):
     
     return palette
 
-def umap_single(ad, variable, exclude_key=None, pt_size=1, show_colors=False, exclude=False, umap_key="X_umap", add_legend = True):
+def umap_single(ad, variable, exclude_key=None, pt_size=1, show_colors=False, exclude=False, umap_key="X_umap", add_legend = True, legend_on_data = False):
     # number of cells
     n_cells = ad.shape[0]
     marker_size = 120000 / n_cells
@@ -610,12 +610,23 @@ def umap_single(ad, variable, exclude_key=None, pt_size=1, show_colors=False, ex
                s=marker_size * pt_size, color =colors,
                linewidths=0, rasterized=True)
 
-    # Add legend
+    # Add legend on the side
     if add_legend:
         markers = [plt.Line2D([0,0],[0,0], color=color, marker='o', linestyle='') for color in palette.values()]
         leg = plt.legend(markers, palette.keys(), numpoints=1, loc='center left', bbox_to_anchor=(1.0, 0.5))
         leg.get_frame().set_linewidth(0.0)
         fig.add_artist(leg)
+
+    # Add legend on top of data 
+    if legend_on_data:
+        for cat in categories:
+            df_cat = df_plot[df_plot[variable] == cat]
+            x = df_cat['UMAP1'].mean()
+            y = df_cat['UMAP2'].mean()
+            ax.text(x, y, cat,
+                    fontsize=4,
+                    color='black',
+                    ha='center', va='center')
     
 
     ax.set_axis_off()
