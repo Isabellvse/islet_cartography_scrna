@@ -283,5 +283,29 @@ def diff_genes_two_clusters(dds_obj, cluster_index, cluster_1, cluster_2, worker
 
     return results
 
+def extract_results(comparisons, results_list, pct_genes_df):
+    # Merge all results
+    all_results = pd.concat(results_list, ignore_index=False)
+    
+    # Merge percentage of genes expressed
+    all_results = all_results.merge(pct_genes_df, left_index=True, right_index=True, how="left")
+    
+    # Convert comparisons to categorical (optional, for sorting later)
+    comparison_order = [f"{c1}_vs_{c2}" for c1, c2 in comparisons]
+    all_results['comparison'] = pd.Categorical(all_results['comparison'], categories=comparison_order, ordered=True)
+    
+    # Extract c1 from the comparison string
+    all_results['c1'] = all_results['comparison'].str.split('_vs_').str[0]
+    
+    # Add helper column for percent expressed in c1
+    all_results['pct_expr_c1'] = all_results.apply(
+        lambda row: row[f"pct_expr_cluster_{row['c1']}"], axis=1
+    )
+    
+    # Reorder columns
+    cols_to_move = ['comparison', 'pct_expr_c1', ]
+    other_cols = [c for c in all_results.columns if c not in cols_to_move]
+    all_results = all_results[cols_to_move + other_cols]
 
+    return(all_results)
     
