@@ -1614,3 +1614,97 @@ process_barcode_files <- function(exists, path, ic_id_sample, platform, save_pat
   })
 }
 
+
+# GO-term -----------------------------------------------------------------
+go_term_wald <- function(test_genes, bg_genes, bg_cell){
+  
+  # add entrez IDs to genes
+  
+  genes <- BiocGenerics::Map(function(df){
+    if (length(rownames(df) > 0)){
+      df$entrez = AnnotationDbi::mapIds(org.Hs.eg.db::org.Hs.eg.db,
+                                        keys=df$gene,
+                                        column="ENTREZID",
+                                        keytype="SYMBOL",
+                                        multiVals="first")
+      
+      output <- df
+    } else {
+      output <- "NA"
+    }
+    
+    return(output)
+  },
+  df = test_genes)
+  
+  # Add entrez IDs to background genes
+  
+  bg_genes <- BiocGenerics::Map(function(df){
+    df$entrez = AnnotationDbi::mapIds(org.Hs.eg.db::org.Hs.eg.db,
+                                      keys=df$gene,
+                                      column="ENTREZID",
+                                      keytype="SYMBOL",
+                                      multiVals="first")
+    
+    return(df)
+  },
+  df = bg_genes)
+  
+  # Create universe - this should be any gene that could have been positive
+  # And I guess that should be all genes that were tested
+  
+  my_universe <- BiocGenerics::Map(function(df){
+    output <- df %>%
+      as.data.frame() %>%
+      filter(!is.na(entrez)) %>%
+      pull(entrez) %>%
+      unlist() %>%
+      unname() %>%
+      unique()
+    
+    return(output)
+  },
+  df = bg_genes)
+  
+  gene_list <- genes
+  # Pathway analysis with clusterprofiler + jaccard index
+  
+  # Jaccard
+  # k is the overlap between your genes-of-interest and the geneset
+  # n is the number of all unique genes-of-interest
+  
+  # BgRatio=M/N
+  
+  # M is the number of genes within each geneset
+  # N is the number of all unique genes across all genesets (universe)
+  output <- BiocGenerics::Map(function(df, universe){
+    if (is.character(df) == TRUE) {
+      output <- "no genes"
+    } else {
+      output <- df %>%
+        dplyr::select(entrez) %>%
+        purrr::as_vector() %>%
+        unname() %>%
+        unique() %>%
+        clusterProfiler::enrichGO(OrgDb = "org.Hs.eg.db",
+                                  pAdjustMethod = "fdr",
+                                  ont = "BP",
+                                  pvalueCutoff  = 0.2,
+                                  qvalueCutoff  = 0.2,
+                                  readable      = TRUE,
+                                  universe = universe
+        ) %>%
+        dplyr::mutate(is_sig = case_when(p.adjust <= 0.01 ~ "*",
+                                         p.adjust > 0.01 ~ "ns"))
+    }
+    
+    return(output)
+    
+  },
+  df = gene_list,
+  universe = my_universe)
+  
+  
+  return(output)
+}
+

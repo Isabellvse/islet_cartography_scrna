@@ -135,7 +135,7 @@ def setup_deseq_object(counts, metadata, design, workers=60):
     return dds
 
 
-def prepare_pseudobulk_deseq_analysis(ad, sample_key, cluster_key, n_cells, design, layer="counts", func="sum", workers=60):
+def prepare_pseudobulk_deseq_analysis(ad, sample_key, cluster_key, n_cells, design, layer="counts", func="sum", return_all = False, workers=60):
     """
     This function aggregates single-cell counts into pseudobulk samples based
     on a given sample and cluster key, and then prepares a DESeq2 dataset object
@@ -157,6 +157,8 @@ def prepare_pseudobulk_deseq_analysis(ad, sample_key, cluster_key, n_cells, desi
         Which data layer in `ad` to use for generating pseudobulk counts.
     func : str, optional (default="sum")
         Aggregation function to use when summing single-cell counts (e.g., "sum", "mean").
+    return_all : bool (default = False) 
+        Wether to return all barcodes used to generate pseudobulks
     workers : int, optional (default=60)
         Number of CPU cores to use for parallel computation.
     
@@ -187,7 +189,10 @@ def prepare_pseudobulk_deseq_analysis(ad, sample_key, cluster_key, n_cells, desi
     # Fit dispertion and logfoldchanges
     dds.deseq2()
 
-    return dds
+    if return_all:
+        return ad_sub.obs[[sample_key, cluster_key]], dds
+    else:    
+        return dds
 
 def compute_pct_expressing(ad, cluster_key, layer="counts", workers=1):
     """
