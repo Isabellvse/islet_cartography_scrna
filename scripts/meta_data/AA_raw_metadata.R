@@ -367,7 +367,8 @@ purrr::map(gurp_meta, class) |> BiocGenerics::as.data.frame() |> tidyr::pivot_lo
 # HPAP --------------------------------------------------------------------
 ### WHAT ABOUT THE OTHER SHEETS?
 # remove t1d donors
-hpap <- readxl::read_excel(here::here("islet_cartography_scrna/data_raw/meta/HPAP/Donor_Summary_176.xlsx")) %>%
+hpap <- readxl::read_excel(here::here("islet_cartography_scrna/data_raw/meta/HPAP/Donor_Summary_176.xlsx"), 
+                           sheet = "donor")   |>   
   dplyr::filter(
     !clinical_diagnosis %in% c(
       "T1DM",
