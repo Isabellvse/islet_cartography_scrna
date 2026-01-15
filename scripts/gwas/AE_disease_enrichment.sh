@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ----------------------------- CONDA -----------------------------------
+# ----------------------------- CONDA -----------------------------------------
 eval "$(conda shell.bash hook)"
 conda activate /work/islet_cartography_scrna/scrna_cartography_gwas
 
