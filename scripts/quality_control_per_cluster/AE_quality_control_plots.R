@@ -111,57 +111,57 @@ dev.off()
 
 
 
-# Apply filter ------------------------------------------------------------
-# Filter per cluster
-filter_cluster <- adata_sum  |>  
-  dplyr::mutate(filter = dplyr::case_when(doublet_probability_median >= 0.4 ~ 1,
-                                          n_umi_median <= 2000 ~ 1,
-                                          contrast_fraction_median <= 0.4 ~ 1,
-                                          complexity_median <= 0.1 ~ 1,
-                                          .default = 0)) |> 
-  dplyr::filter(filter >= 1) |> 
-  dplyr::pull(leiden_res_10.00)
-
-
-
-# Filter per cell
-filter_cells <- adata_obs |> 
-  dplyr::mutate(filter = dplyr::case_when(doublet_probability >= 0.9 ~ 1,
-                                          leiden_res_10.00 %in% filter_cluster ~ 1,
-                                          .default = 0)) |> 
-  dplyr::filter(filter < 1) |> 
-  dplyr::select(barcode)
-
-cells_remove <- adata_obs |> 
-  dplyr::mutate(filter = dplyr::case_when(doublet_probability >= 0.9 ~ 1,
-                                          leiden_res_10.00 %in% filter_cluster ~ 1,
-                                          .default = 0)) |> 
-  dplyr::filter(filter >= 1) |> 
-  dplyr::select(barcode)
-
-# sum of cells in each cluster following qc
-sum_of_cells <- adata_obs |> 
-  dplyr::select(barcode, leiden_res_10.00) |> 
-  dplyr::filter(barcode %in% filter_cells$barcode) |> 
-  dplyr::group_by(leiden_res_10.00) |> 
-  dplyr::summarise(
-    n_cells = n(),
-    .groups = "drop")
-
-sum_of_cells_anno <- adata_obs |> 
-  dplyr::select(barcode, study_cell_annotation_harmonized) |> 
-  dplyr::filter(barcode %in% filter_cells$barcode) |> 
-  dplyr::group_by(study_cell_annotation_harmonized) |> 
-  dplyr::summarise(
-    n_cells = n(),
-    .groups = "drop")
-
-# Save barcodes to be removed ---------------------------------------------
-vroom::vroom_write(filter_cells, 
-                   here::here("islet_cartography_scrna/data/quality_control_per_cluster/first_pass/files/barcodes_keep.csv"))
-
-vroom::vroom_write(cells_remove, 
-                   here::here("islet_cartography_scrna/data/quality_control_per_cluster/first_pass/files/barcodes_keep.csv"))
+# # Apply filter ------------------------------------------------------------
+# # Filter per cluster
+# filter_cluster <- adata_sum  |>  
+#   dplyr::mutate(filter = dplyr::case_when(doublet_probability_median >= 0.4 ~ 1,
+#                                           n_umi_median <= 2000 ~ 1,
+#                                           contrast_fraction_median <= 0.4 ~ 1,
+#                                           complexity_median <= 0.1 ~ 1,
+#                                           .default = 0)) |> 
+#   dplyr::filter(filter >= 1) |> 
+#   dplyr::pull(leiden_res_10.00)
+# 
+# 
+# 
+# # Filter per cell
+# filter_cells <- adata_obs |> 
+#   dplyr::mutate(filter = dplyr::case_when(doublet_probability >= 0.9 ~ 1,
+#                                           leiden_res_10.00 %in% filter_cluster ~ 1,
+#                                           .default = 0)) |> 
+#   dplyr::filter(filter < 1) |> 
+#   dplyr::select(barcode)
+# 
+# cells_remove <- adata_obs |> 
+#   dplyr::mutate(filter = dplyr::case_when(doublet_probability >= 0.9 ~ 1,
+#                                           leiden_res_10.00 %in% filter_cluster ~ 1,
+#                                           .default = 0)) |> 
+#   dplyr::filter(filter >= 1) |> 
+#   dplyr::select(barcode)
+# 
+# # sum of cells in each cluster following qc
+# sum_of_cells <- adata_obs |> 
+#   dplyr::select(barcode, leiden_res_10.00) |> 
+#   dplyr::filter(barcode %in% filter_cells$barcode) |> 
+#   dplyr::group_by(leiden_res_10.00) |> 
+#   dplyr::summarise(
+#     n_cells = n(),
+#     .groups = "drop")
+# 
+# sum_of_cells_anno <- adata_obs |> 
+#   dplyr::select(barcode, study_cell_annotation_harmonized) |> 
+#   dplyr::filter(barcode %in% filter_cells$barcode) |> 
+#   dplyr::group_by(study_cell_annotation_harmonized) |> 
+#   dplyr::summarise(
+#     n_cells = n(),
+#     .groups = "drop")
+# 
+# # Save barcodes to be removed ---------------------------------------------
+# vroom::vroom_write(filter_cells, 
+#                    here::here("islet_cartography_scrna/data/quality_control_per_cluster/first_pass/files/barcodes_keep.csv"))
+# 
+# vroom::vroom_write(cells_remove, 
+#                    here::here("islet_cartography_scrna/data/quality_control_per_cluster/first_pass/files/barcodes_keep.csv"))
 
 ## QC plots ----------------------------------------------------------------
 pdf(
@@ -175,7 +175,6 @@ adata_sum |>
 dev.off()
 
 
-
 # QC plots with thresholds ------------------------------------------------
 plot_list <-adata_sum %>% 
   dplyr::select(tidyselect::contains("_median"), -tidyselect::contains("azimuth")) |>
@@ -183,7 +182,7 @@ plot_list <-adata_sum %>%
 
 plot_list_2 <- plot_list  |>  
   purrr::imap(function(.x, .y){
-    vec <- adata_sum  |>  dplyr::filter(contrast_fraction_median < 0.7)  |>  dplyr::pull(.y) 
+    vec <- adata_sum  |>  dplyr::filter(doublet_probability_median >  0.4)  |>  dplyr::pull(.y) 
     output <- .x + ggplot2::geom_vline(xintercept = vec, color = "red") 
     return(output)
   })
@@ -195,11 +194,27 @@ pdf(
   height = 2,
   width = 2
 )
-# This is lower thresholds
+
 plot_list[[1]] + ggplot2::geom_vline(xintercept = 2000, color = "red") 
 plot_list[[6]] + ggplot2::geom_vline(xintercept = 0.4, color = "red") 
 plot_list[[7]] + ggplot2::geom_vline(xintercept = 0.05, color = "red") 
-plot_list[[8]] + ggplot2::geom_vline(xintercept = 0.4, color = "red")
+plot_list[[8]] + ggplot2::geom_vline(xintercept = 0.4, color = "blue")
+dev.off()
+
+
+pdf(
+  file = here::here(
+    "islet_cartography_scrna/data/quality_control_per_cluster/first_pass/plot/qc_plots_per_cluster_leiden_10_with_threshold_wrapped.pdf"
+  ),
+  height = 2,
+  width = 6
+)
+wrap_plots(
+  plot_list[[1]] + ggplot2::geom_vline(xintercept = 2000, color = "red") |
+    plot_list[[6]] + ggplot2::geom_vline(xintercept = 0.4, color = "red") |
+    plot_list[[7]] + ggplot2::geom_vline(xintercept = 0.05, color = "red") |
+    plot_list[[8]] + ggplot2::geom_vline(xintercept = 0.4, color = "blue")
+)
 dev.off()
 
 # Histogram of cells removed with cluster doublet prop filer --------------
@@ -273,13 +288,6 @@ filter_cells <- adata_obs |>
   dplyr::filter(filter < 1) |> 
   dplyr::select(barcode)
 
-cells_remove <- adata_obs |> 
-  dplyr::mutate(filter = dplyr::case_when(doublet_probability >= 0.9 ~ 1,
-                                          leiden_res_10.00 %in% filter_cluster ~ 1,
-                                          .default = 0)) |> 
-  dplyr::filter(filter >= 1) |> 
-  dplyr::select(barcode)
-
 cells_keep <- adata_obs |> 
   dplyr::mutate(filter = dplyr::case_when(doublet_probability >= 0.9 ~ 1,
                                           leiden_res_10.00 %in% filter_cluster ~ 1,
@@ -288,7 +296,31 @@ cells_keep <- adata_obs |>
   dplyr::select(barcode)
 
 
+adata_sum_flt <- adata_obs %>% 
+  dplyr::filter(barcode %in% cells_keep$barcode) %>% 
+  dplyr::select(n_umi, contrast_fraction, complexity, doublet_probability, leiden_res_10.00) %>% 
+  dplyr::group_by(leiden_res_10.00) |> 
+  dplyr::summarise(dplyr::across(base::is.numeric,
+                                 list(mean = ~mean(.x, na.rm = TRUE),
+                                      median = ~median(.x, na.rm = TRUE))),
+                   n_cells = n(),
+                   .groups = "drop")
+  
 
+plot_list <-adata_sum_flt %>% 
+  dplyr::select(tidyselect::contains("_median"), -tidyselect::contains("azimuth")) |>
+  purrr::imap(~ plot_hist_qc(.x, .y, title = .y))
+
+
+pdf(
+  file = here::here(
+    "islet_cartography_scrna/data/quality_control_per_cluster/first_pass/plot/qc_plots_per_cluster_leiden_10_post_threshold.pdf"
+  ),
+  height = 2,
+  width = 6
+)
+wrap_plots(plot_list, ncol = 4)
+dev.off()
 # Save --------------------------------------------------------------------
 # Save csv files
 vroom::vroom_write(cells_remove, here::here("islet_cartography_scrna/data/quality_control_per_cluster/first_pass/files/barcodes_failed_qc.csv"),

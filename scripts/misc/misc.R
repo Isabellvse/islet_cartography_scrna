@@ -157,3 +157,33 @@ meta_anndata_ordered <- c(
   # Quantification / expression metadata
   "rna_count", "count_quantification", "count_molecule"
 )
+
+
+# Plot --------------------------------------------------------------------
+
+manual_anno_colors = c(
+  acinar = "#c5b0d5",
+  acinar_reg_plus = "#FFCD01",
+  alpha = "#1f77b4",
+  beta = "#ff0000",
+  cycling = "#aec7e8",
+  delta = "#895129",
+  ductal = "#FF46A2",
+  ductal_mucin = "#F7B6D2",
+  endmt_early = "#ae0000",
+  endmt_late = "#44BDF8",
+  endothelial_islet = "#D844F8",
+  epsilon = "#BCF646",
+  gamma = "#FFBB78",
+  mast = "#0000FF",
+  myeloid = "#ee7733",
+  schwann = "#BCBD22",
+  stellate_activated = "#64F844",
+  stellate_quiescent = "#9467BD"
+)
+
+disease_color = c(
+"nd" = "#4B90C5", 
+"pre" = "#E8B43F", 
+"t2d" = "#D9583B")
+
