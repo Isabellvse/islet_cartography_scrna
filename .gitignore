@@ -17,8 +17,22 @@ scrna_cartography_py_azimuth/
 scrna_cartography_py_benchmark/
 scrna_cartography_clone/
 scrna_cartography_scpoli/
+scrna_cartography_gwas/
+scrna_cartography_milo/
 genome_files/
 data/
 data_raw/
 r_library/
 MAGMA/
+
+# Cache
+__pycache__/
+*.pyc
+
+# Notebooks checkpoints
+.ipynb_checkpoints/
+
+# Large / data artifacts
+*.tar.gz
+*.qs
+tmp/
