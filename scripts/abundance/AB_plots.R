@@ -20,7 +20,8 @@ pt2d = t2d |>
   ggplot2::scale_color_manual(values = c("FALSE" = "grey",
                                          "TRUE" = "#D9583B")) +
   ggplot2::geom_vline(xintercept = 0) +
-  my_theme()
+  my_theme() +
+  ggplot2::theme(axis.title.y = ggplot2::element_blank())
 
 ppre <- pre |> 
   ggplot2::ggplot(ggplot2::aes(x = logFC, y = forcats::fct_reorder(nhood_annotation, logFC))) +
@@ -31,8 +32,7 @@ ppre <- pre |>
   ggplot2::scale_color_manual(values = c("FALSE" = "grey",
                                          "TRUE" = "#E8B43F")) +
   ggplot2::geom_vline(xintercept = 0) +
-  my_theme() +
-  ggplot2::theme(axis.title.y = ggplot2::element_blank())
+  my_theme() 
 
 pdf(
   file = here::here("islet_cartography_scrna/data/milo/plots/logfc_boxplot_t2d_pre.pdf"),
@@ -74,4 +74,37 @@ pdf(
   width = 15
 )
 (ppre / pt2d) + plot_layout(guides = 'collect')
+dev.off()
+
+
+# Beeswarmplot ------------------------------------------------------------
+pt2d <- t2d |> 
+  ggplot2::ggplot(aes(x = nhood_annotation, y = logFC)) +
+  ggbeeswarm::geom_quasirandom(data=t2d[t2d$SpatialFDR > 0.1,], 
+                               alpha=1, colour='grey50', size = 0.1) +
+  ggbeeswarm::geom_quasirandom(data=t2d[t2d$SpatialFDR <= 0.1,], 
+                               aes(colour=logFC), size = 0.1) +
+  ggplot2::scale_color_distiller(palette = "RdBu", direction = -1, limits = c(-2, 2)) +
+  ggplot2::coord_flip() +
+  ggplot2::labs(x ="Annotated neighborhoods", y = "Log2(T2D/ND)", colour = "Log2FC") +
+  my_theme() +
+  ggplot2::theme(axis.title.y = ggplot2::element_blank())
+
+ppre <- pre |> 
+  ggplot2::ggplot(aes(x = nhood_annotation, y = logFC)) +
+  ggbeeswarm::geom_quasirandom(data=pre[pre$SpatialFDR > 0.1,], 
+                               alpha=1, colour='grey50', size = 0.1) +
+  ggbeeswarm::geom_quasirandom(data=pre[pre$SpatialFDR <= 0.1,], 
+                               aes(colour=logFC), size = 0.1) +
+  ggplot2::scale_color_distiller(palette = "RdBu", direction = -1, limits = c(-2, 2)) +
+  ggplot2::coord_flip() +
+  ggplot2::labs(x ="Annotated neighborhoods", y = "Log2(PRE/ND)", colour = "Log2FC") +
+  my_theme() 
+
+pdf(
+  file = here::here("islet_cartography_scrna/data/milo/plots/beeswarm_t2d_pre.pdf"),
+  height = 2,
+  width = 5
+)
+(ppre + pt2d) + plot_layout(guides = 'collect')
 dev.off()
