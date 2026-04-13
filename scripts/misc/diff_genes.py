@@ -11,7 +11,7 @@ from pydeseq2.ds import DeseqStats
 
 from joblib import Parallel, delayed
 
-def sample_cell_pseudobulk(ad, sample_key, cluster_key, n_cells):
+def sample_cell_pseudobulk(ad, sample_key, cluster_key, n_cells, random_state=42):
     """
     Subsample a fixed number of cells per (sample, cluster) group from an AnnData object.
 
@@ -25,6 +25,8 @@ def sample_cell_pseudobulk(ad, sample_key, cluster_key, n_cells):
         Column name in ad.obs indicating cluster identity.
     n_cells : int
         Number of cells to sample per (sample, cluster) group.
+    random_state : int or np.random.Generator, optional
+        Seed or generator for reproducible random subsampling.
 
     Returns
     -------
@@ -33,6 +35,9 @@ def sample_cell_pseudobulk(ad, sample_key, cluster_key, n_cells):
     """
     selected_indices = []
 
+    # Create random number generator
+    rng = np.random.default_rng(random_state)
+
     for (sample_val, cluster_val), indices in ad.obs.groupby([sample_key, cluster_key]).indices.items():
         if len(indices) < n_cells:
             continue
@@ -40,7 +45,7 @@ def sample_cell_pseudobulk(ad, sample_key, cluster_key, n_cells):
             selected_indices.extend(indices)
         else:
             selected_indices.extend(
-                np.random.choice(indices, n_cells, replace=False)
+                rng.choice(indices, n_cells, replace=False)
             )
 
     ad_sub = ad[selected_indices].copy()
@@ -135,7 +140,7 @@ def setup_deseq_object(counts, metadata, design, workers=60):
     return dds
 
 
-def prepare_pseudobulk_deseq_analysis(ad, sample_key, cluster_key, n_cells, design, layer="counts", func="sum", return_all = False, workers=60):
+def prepare_pseudobulk_deseq_analysis(ad, sample_key, cluster_key, n_cells, design, layer="counts", func="sum", random_state = 42, return_all = False, workers=60, no_subset=False):
     """
     This function aggregates single-cell counts into pseudobulk samples based
     on a given sample and cluster key, and then prepares a DESeq2 dataset object
@@ -161,6 +166,8 @@ def prepare_pseudobulk_deseq_analysis(ad, sample_key, cluster_key, n_cells, desi
         Wether to return all barcodes used to generate pseudobulks
     workers : int, optional (default=60)
         Number of CPU cores to use for parallel computation.
+    no_subset : bool, optional (default=False)
+        If True, skip subsetting by sample/cluster and generate pseudobulk on all cells.
     
     Returns
     -------
@@ -178,7 +185,12 @@ def prepare_pseudobulk_deseq_analysis(ad, sample_key, cluster_key, n_cells, desi
     inference = DefaultInference(n_cpus=workers)
     
     # Cells for pseudobulk
-    ad_sub = sample_cell_pseudobulk(ad = ad, sample_key = sample_key, cluster_key = cluster_key, n_cells = n_cells)
+        # Decide whether to subset cells
+    if no_subset:
+        ad_sub = ad  # Use full AnnData object
+    else:
+        ad_sub = sample_cell_pseudobulk(ad=ad, sample_key=sample_key, cluster_key=cluster_key, n_cells=n_cells, random_state=random_state)
+
 
     # Pseudobulk
     pseudo_dict = get_pseudobulk(ad = ad_sub, sample_key = sample_key, cluster_key = cluster_key, layer = layer, func = func)

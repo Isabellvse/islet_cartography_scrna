@@ -11,7 +11,7 @@ ANN_DIR="$WD/data/anndata"
 OUT_DIR="$GWAS_DIR/disease_scores"
 
 # files
-GS_FILE="$GWAS_DIR/gs_files/all_traits_geneset.gs"
+GS_FILE="$GWAS_DIR/gs_files/pops_genes.gs"
 COV_FILE="$GWAS_DIR/files/cov.tsv"
 AD_OBJ="$ANN_DIR/AH_combined.h5ad"
 
@@ -26,9 +26,8 @@ scdrs compute-score \
     --gs-file "$GS_FILE" \
     --gs-species "$SPECIES" \
     --cov-file "$COV_FILE" \
-    --flag-filter-data True \
+    --flag-filter-data False \
     --flag-raw-count False \
-    --flag-return-ctrl-raw-score False \
+    --flag-return-ctrl-raw-score True \
     --flag-return-ctrl-norm-score True \
-    --adj-prop "$ADJUST_PROP" \
     --out-folder "$OUT_DIR"

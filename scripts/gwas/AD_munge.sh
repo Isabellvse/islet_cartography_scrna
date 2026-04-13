@@ -14,12 +14,12 @@ PZ_DIR="$GWAS_DIR/pval_zscore"
 GS_DIR="$GWAS_DIR/gs_files"
 
 # ----------------------------- MUNGE -----------------------------------------
-# Select top 1,000 genes and use z-score weights
+# Select top 1,00 genes and use z-score weights
 scdrs munge-gs \
     --out-file "${GS_DIR}/all_traits_geneset.gs" \
     --zscore-file "${PZ_DIR}/zstat.tsv" \
     --fdr 0.05 \
-    --n-max 1000
+    --n-max 100
 
 # ----------------------------- CLEANUP ------------------------------------
 RESULT_FILES=("${GS_DIR}/all_traits_geneset.gs")
