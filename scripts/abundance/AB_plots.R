@@ -79,7 +79,7 @@ dev.off()
 
 # Beeswarmplot ------------------------------------------------------------
 pt2d <- t2d |> 
-  ggplot2::ggplot(aes(x = nhood_annotation, y = logFC)) +
+  ggplot2::ggplot(ggplot2::aes(x = nhood_annotation, y = logFC)) +
   ggbeeswarm::geom_quasirandom(data=t2d[t2d$SpatialFDR > 0.1,], 
                                alpha=1, colour='grey50', size = 0.1) +
   ggbeeswarm::geom_quasirandom(data=t2d[t2d$SpatialFDR <= 0.1,], 
