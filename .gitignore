@@ -7,12 +7,14 @@
 
 # Ignore entire directories
 trash
+dreampy
 misc_scripts/
 scripts/hg38/
 scripts/CondaScript.sh
 scripts/strandedness/
 whitelist/
 scrna_cartography/
+scrna_cartography_dreampy/
 scrna_cartography_py_analysis/
 scrna_cartography_py_azimuth/
 scrna_cartography_py_benchmark/
