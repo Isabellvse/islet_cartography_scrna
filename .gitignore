@@ -6,6 +6,7 @@
 **/*.sh.swo
 
 # Ignore entire directories
+trash
 misc_scripts/
 scripts/hg38/
 scripts/CondaScript.sh
