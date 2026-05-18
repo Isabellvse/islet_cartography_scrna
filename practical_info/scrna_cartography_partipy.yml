@@ -36,6 +36,7 @@ dependencies:
       - annotated-types==0.7.0
       - annsel==0.1.2
       - array-api-compat==1.14.0
+      - asttokens==3.0.1
       - attrs==26.1.0
       - botocore==1.43.0
       - cattrs==26.1.0
@@ -44,17 +45,21 @@ dependencies:
       - click==8.4.0
       - cloudpickle==3.1.2
       - colorcet==3.2.1
+      - comm==0.2.3
       - contourpy==1.3.3
       - cycler==0.12.1
       - dask==2026.1.1
       - dask-image==2025.11.0
       - datashader==0.19.0
       - dcor==0.7
+      - debugpy==1.8.20
+      - decorator==5.3.1
       - decoupler==2.1.6
       - deprecated==1.3.1
       - distributed==2026.1.1
       - docrep==0.3.2
       - donfig==0.8.1.post1
+      - executing==2.2.1
       - fast-array-utils==1.4.1
       - fastjsonschema==2.21.2
       - fonttools==4.63.0
@@ -68,11 +73,16 @@ dependencies:
       - imagecodecs==2025.11.11
       - imageio==2.37.3
       - inflect==7.5.0
+      - ipykernel==7.2.0
+      - ipython==9.13.0
+      - ipython-pygments-lexers==1.1.1
+      - jedi==0.20.0
       - jinja2==3.1.6
       - jmespath==1.1.0
       - joblib==1.5.3
       - jsonschema==4.26.0
       - jsonschema-specifications==2025.9.1
+      - jupyter-client==8.8.0
       - jupyter-core==5.9.1
       - kiwisolver==1.5.0
       - lazy-loader==0.5
@@ -85,6 +95,7 @@ dependencies:
       - markupsafe==3.0.3
       - marsilea==0.6.0
       - matplotlib==3.10.9
+      - matplotlib-inline==0.2.2
       - matplotlib-scalebar==0.9.0
       - mdurl==0.1.2
       - mizani==0.14.4
@@ -97,6 +108,7 @@ dependencies:
       - narwhals==2.21.2
       - natsort==8.4.0
       - nbformat==5.10.4
+      - nest-asyncio==1.6.0
       - networkx==3.6.1
       - numba==0.65.1
       - numcodecs==0.16.5
@@ -106,18 +118,23 @@ dependencies:
       - packaging==26.2
       - pandas==2.3.3
       - param==2.3.3
+      - parso==0.8.7
       - partd==1.4.2
       - partipy==0.2.0
       - pathlib-abc==0.5.2
       - patsy==1.0.2
+      - pexpect==4.9.0
       - pillow==12.2.0
       - pims==0.7
       - platformdirs==4.9.6
       - plotly==6.7.0
       - plotnine==0.15.4
       - pooch==1.9.0
+      - prompt-toolkit==3.0.52
       - propcache==0.5.2
       - psutil==7.2.2
+      - ptyprocess==0.7.0
+      - pure-eval==0.2.3
       - pyarrow==24.0.0
       - pybiomart==0.2.0
       - pyct==0.6.0
@@ -132,6 +149,7 @@ dependencies:
       - python-dateutil==2.9.0.post0
       - pytz==2026.2
       - pyyaml==6.0.3
+      - pyzmq==27.1.0
       - rangehttpserver==1.4.0
       - referencing==0.37.0
       - requests==2.34.2
@@ -155,6 +173,7 @@ dependencies:
       - spatialdata==0.7.3
       - spatialdata-plot==0.3.4
       - squidpy==1.8.1
+      - stack-data==0.6.3
       - statsmodels==0.14.6
       - tblib==3.2.2
       - threadpoolctl==3.6.0
@@ -172,6 +191,7 @@ dependencies:
       - url-normalize==3.0.0
       - urllib3==2.7.0
       - validators==0.35.0
+      - wcwidth==0.7.0
       - wrapt==2.1.2
       - xarray==2026.4.0
       - xarray-dataclass==3.0.0
