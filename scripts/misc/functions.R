@@ -1555,6 +1555,31 @@ visualize_qc_hist_threshold_per_sample <- function(qc_met_split, subtitle = NULL
 }
 
 
+#' Long tile plot
+#'
+#' @param data A dataframe
+#' @param fill_var column you want to fill by
+#' @param y_label string "Study"
+#'
+#' @returns A ggplot
+tile_row <- function(data, fill_var, y_label) {
+  data |>
+    distinct(ic_id_donor_overall, {{ fill_var }}) |>
+    mutate(ic_id_donor_overall = factor(ic_id_donor_overall, levels = donor_order)) |>
+    ggplot(aes(x = ic_id_donor_overall, y = 1, fill = {{ fill_var }})) +
+    geom_tile(color = NA) +
+    labs(y = y_label, fill = NULL) +
+    my_theme() +
+    theme(
+      axis.text = element_blank(),
+      axis.title.x = element_blank(),
+      axis.title.y = element_text(angle = 0, vjust = 0.5, hjust = 1),
+      axis.ticks = element_blank(),
+      axis.line = element_blank(),
+      legend.position = "none"
+    )
+}
+
 # Converting --------------------------------------------------------------
 parse_to_hours <- function(time_str) {
   parts <- strsplit(time_str, " ")[[1]]
