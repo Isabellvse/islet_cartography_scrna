@@ -39,7 +39,7 @@ meta_donor <- meta |>
   dplyr::distinct() |> 
   dplyr::mutate(ethnicity_broad_harmonized = dplyr::case_when(ethnicity_broad_harmonized == "of_european_descent" ~ "EU",
                                                               ethnicity_broad_harmonized == "of_african_descent" ~ "AF",
-                                                              ethnicity_broad_harmonized == "of_latin_american_hispanic_descent" ~ "LAH",
+                                                              ethnicity_broad_harmonized == "of_latin_american_hispanic_descent" ~ "LH",
                                                               ethnicity_broad_harmonized == "of_asian_descent" ~ "AS",
                                                               .default = NA),
                 platform = dplyr::case_when(platform == "plate_barcode" ~ "plate",
@@ -204,7 +204,8 @@ p_bmi <- meta_donor |>
   scale_fill_manual(values = disease_color) +
   labs(x = "Body Mass Index (BMI)", y = "Frequency", title = "BMI") +
   my_theme() +
-  theme(legend.position = "none")
+  theme(legend.position = "none", 
+        axis.title.y = ggplot2::element_blank())
 
 ## ---- HbA1c ----
 p_hba <- meta_donor |>  
@@ -217,7 +218,8 @@ p_hba <- meta_donor |>
   scale_fill_manual(values = disease_color) +
   labs(x = "HbA1c (%)", y = "Frequency", title = "HbA1c") +
   my_theme() +
-  theme(legend.position = "none")
+  theme(legend.position = "none",
+        axis.title.y = ggplot2::element_blank())
 
 ## ---- Disease ----
 p_disease <- meta_donor |>
@@ -239,7 +241,8 @@ p_sex <- meta_donor |>
   geom_col(position = "dodge") +
   labs(x = "Disease", y = "Proportion of donors", title = "Sex") +
   my_theme() +
-  theme(legend.position = "none")
+  theme(legend.position = "none",
+        axis.title.y = ggplot2::element_blank())
 
 ## ---- Ethnicity ----
 p_eth <- meta_donor |>
@@ -250,12 +253,16 @@ p_eth <- meta_donor |>
   scale_fill_manual(values = cols5) +
   labs(x = "Disease", y = "Proportionof donors", title = "Ethnicity") +
   my_theme() +
-  theme(legend.position = "none")
+  theme(legend.position = "none",
+        axis.title.y = ggplot2::element_blank())
 
 
 ## Combine (clean layout)
 
-combined <- (p_disease | p_sex | p_eth) / (p_age | p_bmi | p_hba)
+combined <- (p_disease | p_sex | p_eth) / (p_age | p_bmi | p_hba) +
+  plot_layout(widths = c(1, 1, 1), heights = c(1, 1), guides = "collect") &
+  theme(plot.margin = margin(0, 0, 0, 0))
+combined
 
 ## save
 ggplot2::ggsave(
@@ -263,7 +270,7 @@ ggplot2::ggsave(
   combined,
   units = "mm",
   width = 80,
-  height = 80
+  height = 70
 )
 
 
