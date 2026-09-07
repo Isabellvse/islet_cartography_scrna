@@ -38,15 +38,21 @@ confusion <- meta |>
   dplyr::ungroup() 
 
 # of the cells I labeled X, what fraction were called Y by the study
+pdf(
+  file = paste0(here::here("islet_cartography_scrna/data/annotate/plot/annotation_agreement.pdf")),
+  height = 2,
+  width = 3)
 confusion |>
   ggplot2::ggplot(ggplot2::aes(x = study_cell_annotation_harmonized, y = cell_type_broad, fill = pct)) +
   ggplot2::geom_tile(color = "white") +
   ggplot2::scale_fill_gradientn(colors = iridescent(5), limits=c(0,1)) +
-  ggplot2::geom_text(ggplot2::aes(label = round(pct,2)), size = 3) +
   ggplot2::labs(
     x = "Study annotation",
     y = "Cell type broad",
     fill = "Fraction of\n cell type broad"
   ) +
-  ggplot2::theme_minimal() +
-  ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1))
+  ggplot2::scale_x_discrete(labels = function(x) stringr::str_to_title(x)) +
+  ggplot2::scale_y_discrete(labels = function(x) stringr::str_to_title(x)) +
+  my_theme() +
+  ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 90, hjust = 1, vjust = 0.5))
+dev.off()
