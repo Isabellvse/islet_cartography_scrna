@@ -12,8 +12,6 @@ iridescent <- khroma::color("iridescent")
 # Current meta data
 meta <- vroom::vroom(here::here("islet_cartography_scrna/data/annotate/files/obs.csv")) 
 
-
-
 # Broad annotation --------------------------------------------------------
 confusion <- meta |>
   dplyr::count(cell_type_broad, 
@@ -82,3 +80,99 @@ confusion |>
   my_theme() +
   ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 90, hjust = 1, vjust = 0.5))
 dev.off()
+
+
+# Per dataset Broad annotation --------------------------------------------------------
+confusion <- meta |>
+  dplyr::count(ic_id_dataset,
+               cell_type_broad, 
+               study_cell_annotation_harmonized, 
+               name = "n") |>
+  tidyr::complete(
+    ic_id_dataset,
+    cell_type_broad,
+    study_cell_annotation_harmonized,
+    fill = list(n = 0)
+  ) |> 
+  dplyr::group_by(ic_id_dataset, cell_type_broad) |>
+  dplyr::mutate(pct = n / sum(n)) |>
+  dplyr::ungroup()
+
+pdf(
+  file = paste0(here::here("islet_cartography_scrna/data/annotate/plot/annotation_agreement_cell_type_broad_dataset.pdf")),
+  height = 5,
+  width = 6)
+confusion |>
+  ggplot2::ggplot(ggplot2::aes(x = study_cell_annotation_harmonized, y = cell_type_broad, fill = pct)) +
+  ggplot2::geom_tile(color = "white") +
+  ggplot2::scale_fill_gradientn(colors = iridescent(5), limits = c(0, 1)) +
+  ggplot2::facet_wrap(~ ic_id_dataset) +
+  ggplot2::labs(
+    x = "Study annotation",
+    y = "Cell type broad",
+    fill = "Fraction of\nmy label"
+  ) +
+  my_theme() +
+  ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 90, hjust = 1, vjust = 0.5))
+dev.off()
+
+# Per dataset annotation --------------------------------------------------------
+confusion <- meta |>
+  dplyr::count(ic_id_dataset,
+               cell_type, 
+               study_cell_annotation_harmonized, 
+               name = "n") |>
+  tidyr::complete(
+    ic_id_dataset,
+    cell_type,
+    study_cell_annotation_harmonized,
+    fill = list(n = 0)
+  ) |> 
+  dplyr::group_by(ic_id_dataset, cell_type) |>
+  dplyr::mutate(pct = n / sum(n)) |>
+  dplyr::ungroup()
+
+pdf(
+  file = paste0(here::here("islet_cartography_scrna/data/annotate/plot/annotation_agreement_cell_type_dataset.pdf")),
+  height = 6,
+  width = 6)
+confusion |>
+  ggplot2::ggplot(ggplot2::aes(x = study_cell_annotation_harmonized, y = cell_type, fill = pct)) +
+  ggplot2::geom_tile(color = "white") +
+  ggplot2::scale_fill_gradientn(colors = iridescent(5), limits = c(0, 1)) +
+  ggplot2::facet_wrap(~ ic_id_dataset) +
+  ggplot2::labs(
+    x = "Study annotation",
+    y = "Cell type",
+    fill = "Fraction of\nmy label"
+  ) +
+  my_theme() +
+  ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 90, hjust = 1, vjust = 0.5))
+dev.off()
+
+# % of cells that are mislabeled -------------------------------------------
+meta |> 
+  dplyr::mutate(inconsistent = as.numeric(cell_type_broad != study_cell_annotation_harmonized)) |> 
+  dplyr::group_by(cell_type_broad) |> 
+  dplyr::summarise(total = dplyr::n(),
+                   sum = sum(inconsistent),
+                   pct = sum / total) |> 
+  ggplot2::ggplot(ggplot2::aes(x = pct, y = cell_type_broad, fill = cell_type_broad)) +
+  ggplot2::geom_bar(stat = "identity") +
+  ggplot2::scale_fill_manual(values = cell_type_broad_colors) +
+  ggplot2::scale_y_discrete(labels = function(x) stringr::str_to_title(x)) +
+  my_theme() +
+  ggplot2::theme(legend.position = "none")
+
+meta |> 
+  dplyr::mutate(inconsistent = as.numeric(cell_type != study_cell_annotation_harmonized)) |> 
+  dplyr::group_by(cell_type) |> 
+  dplyr::summarise(total = dplyr::n(),
+                   sum = sum(inconsistent),
+                   pct = sum / total) |> 
+  ggplot2::ggplot(ggplot2::aes(x = pct, y = cell_type, fill = cell_type)) +
+  ggplot2::geom_bar(stat = "identity") +
+  ggplot2::scale_fill_manual(values = cell_type_colors) +
+  ggplot2::scale_y_discrete(labels = function(x) stringr::str_to_title(x)) +
+  my_theme() +
+  ggplot2::theme(legend.position = "none")
