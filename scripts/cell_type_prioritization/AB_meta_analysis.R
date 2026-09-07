@@ -1,5 +1,5 @@
 # Description -------------------------------------------------------------
-# augur rank
+# augur rank - min max scale
 # Setup -------------------------------------------------------------------
 base::source(here::here("islet_cartography_scrna/scripts/misc/set_up.R"))
 set.seed(1000)
