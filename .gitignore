@@ -29,6 +29,7 @@ data/
 data_raw/
 r_library/
 MAGMA/
+scDRS
 
 # Cache
 __pycache__/
