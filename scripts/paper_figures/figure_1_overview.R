@@ -25,16 +25,16 @@ cols25 <- c(
 cols5 <- c("#1F51FF", "#FF00FF", "#0FFF50", "#FF5F1F", "#FFEA00")
 
 # Load --------------------------------------------------------------------
-meta <- vroom::vroom(here::here("islet_cartography_scrna/data/paper_figures/files/obs.csv"))
+meta <- vroom::vroom(here::here("islet_cartography_scrna/data/annotate/files/obs.csv")) 
 
 # Statistical analysis ----------------------------------------------------
 df <- meta |> 
-  dplyr::select(ic_id_donor_overall, bmi, hba_1_c_percent, disease_harmonized) |> 
+  dplyr::select(ic_id_donor_overall, bmi, hba_1_c_percent, disease_hba1c) |> 
   dplyr::distinct() |> 
-  dplyr::mutate(disease_harmonized = factor(disease_harmonized, levels = c("nd", "pre", "t2d")))
+  dplyr::mutate(disease_hba1c = factor(disease_hba1c, levels = c("nd", "pre", "t2d")))
 
 # summarise data
-group_by(df, disease_harmonized) %>%
+group_by(df, disease_hba1c) %>%
   summarise(
     count = n(),
     mean = mean(hba_1_c_percent, na.rm = TRUE),
@@ -51,18 +51,18 @@ df |>
   tidyr::nest(.by = "name") |> 
   dplyr::mutate(overall = purrr::map(data, \(df){
     df |> 
-      rstatix::kruskal_test(value ~ disease_harmonized) |> 
+      rstatix::kruskal_test(value ~ disease_hba1c) |> 
       dplyr::left_join(df |> 
-                         rstatix::kruskal_effsize(value ~ disease_harmonized) |> 
+                         rstatix::kruskal_effsize(value ~ disease_hba1c) |> 
                          dplyr::select(-method)) |> 
       dplyr::select(-".y.")
   }),
   pairwise = purrr::map(data, \(df){
     df |> 
-      rstatix::wilcox_test(value ~ disease_harmonized) |> 
+      rstatix::wilcox_test(value ~ disease_hba1c) |> 
       dplyr::mutate(method = "wilcox") |> 
       dplyr::left_join(df |> 
-                         rstatix::wilcox_effsize(value ~ disease_harmonized)) |> 
+                         rstatix::wilcox_effsize(value ~ disease_hba1c)) |> 
       dplyr::select(-".y.")
   })) |> 
   dplyr::select(-data) |> 
@@ -76,7 +76,7 @@ meta_donor <- meta |>
   dplyr::select(name, ic_id_donor_overall, 
                 ic_id_platform_adjusted_sample, 
                 ic_id_study, ic_id_dataset, library_prep, 
-                disease_harmonized,
+                disease_hba1c,
                 sex_predicted, age_years, bmi, hba_1_c_percent, 
                 ethnicity_broad_harmonized,
                 cell_nuclei, platform) |> 
@@ -97,7 +97,7 @@ donor_order <- meta_donor |>
   dplyr::arrange(
     ic_id_study,
     ic_id_dataset,
-    disease_harmonized,
+    disease_hba1c,
     hba_1_c_percent,
     bmi,
     age_years,
@@ -108,7 +108,7 @@ donor_order <- meta_donor |>
 
 ## Generate barplots for each variable ----
 study   <- tile_row(meta_donor, ic_id_study,   "Study") + scale_fill_manual(values = cols22)
-disease <- tile_row(meta_donor, disease_harmonized, "Disease") + ggplot2::scale_fill_manual(values = disease_color)
+disease <- tile_row(meta_donor, disease_hba1c, "Disease") + ggplot2::scale_fill_manual(values = disease_color)
 sex <- tile_row(meta_donor, sex_predicted, "Sex") + scale_fill_manual(values = c("#C2563A", "#3F7F93"))
 eth <- tile_row(meta_donor, ethnicity_broad_harmonized, "Ethnicity") + scale_fill_manual(values = cols5)
 age  <- tile_row(meta_donor, age_years, "Age (years)") + ggplot2::scale_fill_gradient(low = "white", high = "#5D3FD3")
@@ -229,7 +229,7 @@ p_age <- meta_donor |>
   geom_histogram(aes(y = after_stat(count / sum(count) * 100)),
                  bins = 30,
                  fill = "grey") +
-  geom_boxplot(aes(y = -2, group = disease_harmonized, fill = disease_harmonized),
+  geom_boxplot(aes(y = -2, group = disease_hba1c, fill = disease_hba1c),
                width = 3, outlier.size = 0.5) +
   scale_fill_manual(values = disease_color) +
   labs(x = "Age (years)", y = "Frequency", title = "Age") +
@@ -242,7 +242,7 @@ p_bmi <- meta_donor |>
   geom_histogram(aes(y = after_stat(count / sum(count) * 100)),
                  bins = 30,
                  fill = "grey") +
-  geom_boxplot(aes(y = -2, group = disease_harmonized, fill = disease_harmonized),
+  geom_boxplot(aes(y = -2, group = disease_hba1c, fill = disease_hba1c),
                width = 3, outlier.size = 0.5) +
   scale_fill_manual(values = disease_color) +
   labs(x = "Body Mass Index (BMI)", y = "Frequency", title = "BMI") +
@@ -256,7 +256,7 @@ p_hba <- meta_donor |>
   geom_histogram(aes(y = after_stat(count / sum(count) * 100)),
                  bins = 30,
                  fill = "grey") +
-  geom_boxplot(aes(y = -2, group = disease_harmonized, fill = disease_harmonized),
+  geom_boxplot(aes(y = -2, group = disease_hba1c, fill = disease_hba1c),
                width = 3, outlier.size = 0.5) +
   scale_fill_manual(values = disease_color) +
   labs(x = "HbA1c (%)", y = "Frequency", title = "HbA1c") +
@@ -266,9 +266,9 @@ p_hba <- meta_donor |>
 
 ## ---- Disease ----
 p_disease <- meta_donor |>
-  count(disease_harmonized) |>
+  count(disease_hba1c) |>
   mutate(perc = n/sum(n)) |>
-  ggplot(aes(disease_harmonized, perc, fill = disease_harmonized)) +
+  ggplot(aes(disease_hba1c, perc, fill = disease_hba1c)) +
   geom_col() +
   scale_fill_manual(values = disease_color) +
   labs(x = "Disease", y = "Proportion of donors", title = "Disease") +
@@ -277,9 +277,9 @@ p_disease <- meta_donor |>
 
 ## ---- Sex ----
 p_sex <- meta_donor |>
-  count(sex_predicted, disease_harmonized) |>
+  count(sex_predicted, disease_hba1c) |>
   mutate(perc = n/sum(n)) |>
-  ggplot(aes(disease_harmonized, perc, fill = sex_predicted)) +
+  ggplot(aes(disease_hba1c, perc, fill = sex_predicted)) +
   scale_fill_manual(values = c("#C2563A", "#3F7F93")) +
   geom_col(position = "dodge") +
   labs(x = "Disease", y = "Proportion of donors", title = "Sex") +
@@ -289,9 +289,9 @@ p_sex <- meta_donor |>
 
 ## ---- Ethnicity ----
 p_eth <- meta_donor |>
-  count(ethnicity_broad_harmonized, disease_harmonized) |>
+  count(ethnicity_broad_harmonized, disease_hba1c) |>
   mutate(perc = n/sum(n)) |>
-  ggplot(aes(disease_harmonized, perc, fill = ethnicity_broad_harmonized)) +
+  ggplot(aes(disease_hba1c, perc, fill = ethnicity_broad_harmonized)) +
   geom_col(position = "dodge") +
   scale_fill_manual(values = cols5) +
   labs(x = "Disease", y = "Proportionof donors", title = "Ethnicity") +
@@ -317,13 +317,145 @@ ggplot2::ggsave(
 )
 
 
+# broad cell type per donor -----------------------------------------------------
+p1 <- meta |> 
+  dplyr::group_by(cell_type_broad) |> 
+  dplyr::summarise(n = dplyr::n()) |> 
+  dplyr::ungroup() |> 
+  dplyr::mutate(total = sum(n),
+                pct = n / total) |> 
+  ggplot2::ggplot(ggplot2::aes(x = "x", y = pct, fill = cell_type_broad)) +
+  ggplot2::geom_bar(stat = "identity") +
+  ggplot2::scale_fill_manual(values = cell_type_broad_colors) +
+  my_theme() +
+  ggplot2::theme(axis.title.x = ggplot2::element_blank(),
+                 axis.ticks.x = ggplot2::element_blank(),
+                 axis.text.x = ggplot2::element_blank())
+
+n_cells_donor <- meta |> 
+  dplyr::group_by(ic_id_donor_overall) |> 
+  dplyr::summarise(n = dplyr::n()) |> 
+  dplyr::ungroup() |> 
+  dplyr::arrange(dplyr::desc(n)) |> 
+  dplyr::mutate(rank = dplyr::row_number())
+
+p2 <- n_cells_donor |> 
+  ggplot2::ggplot(ggplot2::aes(x = forcats::fct_reorder(ic_id_donor_overall, rank), y = n)) +
+  ggplot2::geom_bar(stat = "identity", width = 1) +
+  ggplot2::labs(y = "Total cells") +
+  my_theme() +
+  ggplot2::theme(axis.title.x = ggplot2::element_blank(),
+                 axis.ticks.x = ggplot2::element_blank(),
+                 axis.text.x = ggplot2::element_blank())
+
+p3 <- meta |> 
+  dplyr::group_by(cell_type_broad, ic_id_donor_overall) |> 
+  dplyr::summarise(n = dplyr::n()) |> 
+  dplyr::ungroup() |> 
+  dplyr::group_by(ic_id_donor_overall) |> 
+  dplyr::mutate(total = sum(n),
+                pct = n / total) |> 
+  dplyr::ungroup() |> 
+  ggplot2::ggplot(ggplot2::aes(x = forcats::fct_relevel(ic_id_donor_overall, 
+                                                        n_cells_donor$ic_id_donor_overall), 
+                               y = pct, fill = cell_type_broad)) +
+  ggplot2::geom_bar(stat = "identity", width = 1) +
+  ggplot2::scale_fill_manual(values = cell_type_broad_colors) +
+  my_theme() +
+  ggplot2::theme( 
+                 axis.text.x = ggplot2::element_blank(),
+                 axis.ticks.x = ggplot2::element_blank(),
+                 axis.text.y = ggplot2::element_blank(),
+                 axis.ticks.y = ggplot2::element_blank(),
+                 axis.title.x = ggplot2::element_blank(),
+                 axis.title.y = ggplot2::element_blank()) 
+
+pdf(here::here("islet_cartography_scrna/data/paper_figures/plot/celltype_broad_composition_per_donor.pdf"),
+    width = 5,
+    height = 2)
+((patchwork::plot_spacer() / p1) + patchwork::plot_layout(heights = c(0.3, 1)) |
+    (p2 / p3) + patchwork::plot_layout(heights = c(0.3, 1))) +
+  patchwork::plot_layout(widths = c(0.1, 1), guides = "collect")
+dev.off()
+
+# check that axis order is the same
+identical(ggplot2::ggplot_build(p2)$layout$panel_params[[1]]$x$get_labels(),
+ggplot2::ggplot_build(p3)$layout$panel_params[[1]]$x$get_labels())
+
+
+# cell type annotation per donor ------------------------------------------
+## Overall percentage ----
+p1 <- meta |> 
+  dplyr::group_by(cell_type_broad) |> 
+  dplyr::summarise(n = dplyr::n()) |> 
+  dplyr::ungroup() |> 
+  dplyr::mutate(total = sum(n),
+                pct = n / total) |> 
+  ggplot2::ggplot(ggplot2::aes(x = "x", y = pct, fill = cell_type_broad)) +
+  ggplot2::geom_bar(stat = "identity") +
+  ggplot2::scale_fill_manual(values = cell_type_broad_colors) +
+  my_theme() +
+  ggplot2::theme(axis.title.x = ggplot2::element_blank(),
+                 axis.ticks.x = ggplot2::element_blank(),
+                 axis.text.x = ggplot2::element_blank())
+
+n_cells_donor <- meta |> 
+  dplyr::group_by(ic_id_donor_overall) |> 
+  dplyr::summarise(n = dplyr::n()) |> 
+  dplyr::ungroup() |> 
+  dplyr::arrange(dplyr::desc(n)) |> 
+  dplyr::mutate(rank = dplyr::row_number())
+
+p2 <- n_cells_donor |> 
+  ggplot2::ggplot(ggplot2::aes(x = forcats::fct_reorder(ic_id_donor_overall, rank), y = n)) +
+  ggplot2::geom_bar(stat = "identity", width = 1) +
+  ggplot2::labs(y = "Total cells") +
+  my_theme() +
+  ggplot2::theme(axis.title.x = ggplot2::element_blank(),
+                 axis.ticks.x = ggplot2::element_blank(),
+                 axis.text.x = ggplot2::element_blank())
+
+p3 <- meta |> 
+  dplyr::group_by(cell_type_broad, ic_id_donor_overall) |> 
+  dplyr::summarise(n = dplyr::n()) |> 
+  dplyr::ungroup() |> 
+  dplyr::group_by(ic_id_donor_overall) |> 
+  dplyr::mutate(total = sum(n),
+                pct = n / total) |> 
+  dplyr::ungroup() |> 
+  ggplot2::ggplot(ggplot2::aes(x = forcats::fct_relevel(ic_id_donor_overall, 
+                                                        n_cells_donor$ic_id_donor_overall), 
+                               y = pct, fill = cell_type_broad)) +
+  ggplot2::geom_bar(stat = "identity", width = 1) +
+  ggplot2::scale_fill_manual(values = cell_type_broad_colors) +
+  my_theme() +
+  ggplot2::theme( 
+    axis.text.x = ggplot2::element_blank(),
+    axis.ticks.x = ggplot2::element_blank(),
+    axis.text.y = ggplot2::element_blank(),
+    axis.ticks.y = ggplot2::element_blank(),
+    axis.title.x = ggplot2::element_blank(),
+    axis.title.y = ggplot2::element_blank()) 
+
+pdf(here::here("islet_cartography_scrna/data/paper_figures/plot/celltype_composition_per_donor.pdf"),
+    width = 5,
+    height = 2)
+((patchwork::plot_spacer() / p1) + patchwork::plot_layout(heights = c(0.3, 1)) |
+    (p2 / p3) + patchwork::plot_layout(heights = c(0.3, 1))) +
+  patchwork::plot_layout(widths = c(0.1, 1), guides = "collect")
+dev.off()
+
+# check that axis order is the same
+identical(ggplot2::ggplot_build(p2)$layout$panel_params[[1]]$x$get_labels(),
+          ggplot2::ggplot_build(p3)$layout$panel_params[[1]]$x$get_labels())
+
 # annotation --------------------------------------------------------------
 # -----------------------------
 # Disease composition
 # -----------------------------
 p_disease <- meta |>
-  count(disease_harmonized, manual_annotation) |>
-  ggplot(aes(x = disease_harmonized, y = n, fill = manual_annotation)) +
+  count(disease_hba1c, manual_annotation) |>
+  ggplot(aes(x = disease_hba1c, y = n, fill = manual_annotation)) +
   geom_col(position = "fill") +
   scale_fill_manual(values = manual_anno_colors) +
   labs(x = "Disease", y = "Proportion", fill = "Cell type") +
