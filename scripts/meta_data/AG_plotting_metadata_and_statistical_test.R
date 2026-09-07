@@ -4,10 +4,8 @@
 base::source(here::here("islet_cartography_scrna/scripts/misc/set_up.R"))
 set.seed(1000)
 
-
 # Load --------------------------------------------------------------------
 meta <- vroom::vroom(here::here("islet_cartography_scrna/data/post_qc_metadata.csv"))
-
 
 # preprocess --------------------------------------------------------------
 
@@ -15,7 +13,7 @@ meta <- vroom::vroom(here::here("islet_cartography_scrna/data/post_qc_metadata.c
 meta_donor <- meta |> 
   dplyr::select(name, ic_id_donor_overall, ic_id_platform_adjusted_sample, ic_id_study, ic_id_dataset, library_prep, disease_harmonized,
                 sex_predicted, age_years, bmi, hba_1_c_percent, ethnicity_broad_harmonized, diabetes_medication_harmonized, 
-                cause_of_death_broad_harmonized, cell_nuclei) |> 
+                cause_of_death_broad_harmonized, cell_nuclei, ) |> 
   dplyr::distinct()
 
 # Statistical tests -------------------------------------------------------
@@ -86,6 +84,7 @@ tile_row <- function(data, fill_var, y_label) {
     )
 }
 
+### barplots ----
 study   <- tile_row(meta_donor, ic_id_study,   "Study") + scale_fill_manual(values = cols22)
 disease <- tile_row(meta_donor, disease_harmonized, "Disease") + ggplot2::scale_fill_manual(values = disease_color)
 sex <- tile_row(meta_donor, sex_predicted, "Sex") + scale_fill_manual(values = c("#C2563A", "#3F7F93"))
@@ -128,6 +127,23 @@ platform <- meta_donor |>
     legend.position = "none"
   )
 
+platform_simple <- meta_donor |>
+  count(ic_id_donor_overall, library_prep) |>
+  mutate(ic_id_donor_overall = factor(ic_id_donor_overall, levels = donor_order)) |>
+  ggplot(aes(x = ic_id_donor_overall, y = n, fill = library_prep)) +
+  geom_col(position = "fill", width = 1, color = NA, linewidth = 0.3) +
+  labs(y = "Platform", fill = NULL) +
+  scale_fill_manual(values = cols25) +
+  my_theme() +
+  theme(
+    axis.text = element_blank(),
+    axis.title.x = element_blank(),
+    axis.title.y = element_text(angle = 0, vjust = 0.5, hjust = 1),
+    axis.ticks = element_blank(),
+    axis.line = element_blank(),
+    legend.position = "none"
+  )
+
 hba <- meta_donor |>
   distinct(ic_id_donor_overall, hba_1_c_percent) |>
   mutate(ic_id_donor_overall = factor(ic_id_donor_overall, levels = donor_order)) |>
@@ -152,7 +168,7 @@ hba <- meta_donor |>
 
 
 # get legends -------------------------------------------------------------
-library(cowplot)
+
 
 get_leg <- function(p) {
   cowplot::get_legend(
@@ -198,7 +214,6 @@ ggplot2::ggsave(
   width = 12,
   height = 3
 )
-
 
 # barplots and histograms -------------------------------------------------
 library(patchwork)
