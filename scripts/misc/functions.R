@@ -946,7 +946,7 @@ my_theme <- function() {
       strip.background = element_blank(),
       plot.title = element_text(size = 8, hjust = 0.5),
       axis.title = element_text(size = 7),
-      axis.text = element_text(size = 6, color = "black"),
+      axis.text = element_text(size = 5, color = "black"),
       axis.ticks = element_line(color = "black"),
       legend.text = element_text(size = 4),
       legend.title = element_text(size = 4),
