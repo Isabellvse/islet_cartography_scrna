@@ -187,3 +187,59 @@ disease_color = c(
 "pre" = "#E8B43F", 
 "t2d" = "#D9583B")
 
+
+cell_type_colors <- c(
+  acinar              = "#c5b0d5",
+  acinar_reg_plus     = "#FFCD01",
+  alpha               = "#1f77b4",
+  beta                = "#ff0000",
+  cycling             = "#aec7e8",
+  delta               = "#895129",
+  ductal              = "#FF46A2",
+  ductal_mucin        = "#F7B6D2",
+  pericyte            = "#ae0000",
+  endothelial         = "#D844F8",
+  epsilon             = "#BCF646",
+  gamma               = "#FFBB78",
+  mast                = "#0000FF",
+  myeloid             = "#ee7733",
+  schwann             = "#BCBD22",
+  stellate_activated  = "#64F844",
+  stellate_quiescent  = "#9467BD"
+)
+
+cell_type_broad_colors <- c(
+  acinar              = "#c5b0d5",
+  alpha               = "#1f77b4",
+  beta                = "#ff0000",
+  cycling             = "#aec7e8",
+  delta               = "#895129",
+  ductal              = "#FF46A2",
+  vascular            = "#ae0000",
+  epsilon             = "#BCF646",
+  gamma               = "#FFBB78",
+  mast                = "#0000FF",
+  myeloid             = "#ee7733",
+  schwann             = "#BCBD22",
+  stellate            = "#64F844"
+)
+# different number of colors ----------------------------------------------
+cols22 <- c(
+  "#1F51FF", "#d95f02", "#CBC3E3", "#e7298a", "#66a61e",
+  "#e6ab02", "#800020", "#988558",
+  "#00FFFF", "#b2df8a", "#fb9a99", "#FFEA00",
+  "#FF00FF", "#5D3FD3", "#0FFF50", "#b15928",
+  "#8dd3c7", "#bebada", "#80b1d3", "#fccde5",
+  "#b3de69", "#FF5F1F"
+)
+
+cols25 <- c(
+  "#1F51FF", "#d95f02", "#CBC3E3", "#e7298a", "#66a61e",
+  "#e6ab02", "#800020", "#988558",
+  "#00FFFF", "#b2df8a", "#fb9a99", "#FFEA00",
+  "#FF00FF", "#5D3FD3", "#0FFF50", "#b15928",
+  "#8dd3c7", "#bebada", "#80b1d3", "#fccde5",
+  "#b3de69", "#FF5F1F", "#FFA82E", "#DFFF00", "#FAD5A5"
+)
+
+cols5 <- c("#1F51FF", "#FF00FF", "#0FFF50", "#FF5F1F", "#FFEA00")
