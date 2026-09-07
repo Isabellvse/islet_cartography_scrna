@@ -450,7 +450,7 @@ identical(ggplot2::ggplot_build(p2)$layout$panel_params[[1]]$x$get_labels(),
           ggplot2::ggplot_build(p3)$layout$panel_params[[1]]$x$get_labels())
 
 
-# Number of cell per donor ------------------------------------------------
+# Number of cell per donor - dataset ------------------------------------------------
 # rank dataset
 dataset_order <- meta |> 
   dplyr::group_by(ic_id_dataset, ic_id_donor_overall) |> 
@@ -505,7 +505,69 @@ p2 <- meta |>
                  axis.title.y = ggplot2::element_blank(),
                  axis.ticks.y = ggplot2::element_blank())
 
-pdf(here::here("islet_cartography_scrna/data/paper_figures/plot/cell_per_donor.pdf"),
+pdf(here::here("islet_cartography_scrna/data/paper_figures/plot/cell_per_donor_dataset.pdf"),
+    width = 3,
+    height = 2)
+p1 + p2 + patchwork::plot_layout(guides = "collect", widths = c(1, 0.3))
+dev.off()
+
+
+# Number of cell per donor study ------------------------------------------------
+# rank dataset
+dataset_order <- meta |> 
+  dplyr::group_by(ic_id_study, ic_id_donor_overall) |> 
+  dplyr::tally() |> 
+  dplyr::group_by(ic_id_study) |>
+  dplyr::summarise(max = median(n)) |> 
+  dplyr::ungroup() |> 
+  dplyr::arrange(max) |> 
+  dplyr::pull(ic_id_study)
+
+p1 <- meta |> 
+  dplyr::group_by(ic_id_study, ic_id_donor_overall) |> 
+  dplyr::tally() |> 
+  dplyr::group_by(ic_id_study) |> 
+  dplyr::mutate(n_donor = dplyr::n()) |> 
+  dplyr::ungroup() |> 
+  ggplot2::ggplot(ggplot2::aes(x = n, y = forcats::fct_relevel(ic_id_study, dataset_order))) +
+  ggplot2::geom_boxplot(ggplot2::aes(fill = n_donor), outlier.size = 0.5, 
+                        median.linewidth = 0.5) +
+  ggplot2::scale_x_log10(
+    breaks = scales::trans_breaks("log10", \(x) 10^x),
+    labels = scales::trans_format("log10", scales::math_format(10^.x))
+  ) +
+  ggplot2::scale_fill_gradientn(colors = iridescent(5)) +
+  ggplot2::annotation_logticks(sides = "bottom", outside = T, 
+                               short = unit(0.05, "cm"), 
+                               mid = unit(0.1, "cm"), 
+                               long = unit(0.15, "cm"))  +
+  ggplot2::scale_y_discrete(labels = function(x) stringr::str_to_upper(x) |> 
+                              stringr::str_replace("_", " ")) +
+  ggplot2::labs(y = "Study",
+                x = "Cell per donor") +
+  my_theme() +
+  ggplot2::coord_cartesian(clip = "off")
+
+p2 <- meta |> 
+  dplyr::distinct(ic_id_study, ic_id_donor_overall) |> 
+  dplyr::group_by(ic_id_study) |> 
+  dplyr::tally(name = "n_donor") |> 
+  dplyr::ungroup() |> 
+  ggplot2::ggplot(ggplot2::aes(x = n_donor, y = forcats::fct_relevel(ic_id_study, dataset_order),
+                               fill = n_donor)) + 
+  ggplot2::geom_bar(stat="identity") +
+  ggplot2::scale_fill_gradientn(colors = iridescent(5)) +
+  ggplot2::scale_y_discrete(labels = function(x) stringr::str_to_upper(x) |> 
+                              stringr::str_replace("_", " ")) +
+  ggplot2::labs(y = "Dataset",
+                x = "Cell per donor") +
+  my_theme() +
+  ggplot2::coord_cartesian(clip = "off") +
+  ggplot2::theme(axis.text.y = ggplot2::element_blank(),
+                 axis.title.y = ggplot2::element_blank(),
+                 axis.ticks.y = ggplot2::element_blank())
+
+pdf(here::here("islet_cartography_scrna/data/paper_figures/plot/cell_per_donor_study.pdf"),
     width = 3,
     height = 2)
 p1 + p2 + patchwork::plot_layout(guides = "collect", widths = c(1, 0.3))
