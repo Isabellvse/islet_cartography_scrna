@@ -11,8 +11,8 @@ iridescent <- khroma::color("iridescent")
 # Load --------------------------------------------------------------------
 ucell <- vroom::vroom(here::here("islet_cartography_scrna/data/annotate/files/ucell_canonical_genes.csv")) |> 
   dplyr::rename(barcode = "...1") |> 
-  dplyr::rename(endothelial_islet = islet_endothelial) |> 
-  dplyr::select(-acinar_i, -acinar_s, -acinar_endothelial)
+  dplyr::rename(endothelial_islet = islet_endothelial,
+                endothelial_acinar = acinar_endothelial)
 
 # Permutation test --------------------------------------------------------
 # Calculate mean original score
