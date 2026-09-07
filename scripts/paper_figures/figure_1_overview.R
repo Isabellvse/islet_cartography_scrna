@@ -27,6 +27,50 @@ cols5 <- c("#1F51FF", "#FF00FF", "#0FFF50", "#FF5F1F", "#FFEA00")
 # Load --------------------------------------------------------------------
 meta <- vroom::vroom(here::here("islet_cartography_scrna/data/paper_figures/files/obs.csv"))
 
+# Statistical analysis ----------------------------------------------------
+df <- meta |> 
+  dplyr::select(ic_id_donor_overall, bmi, hba_1_c_percent, disease_harmonized) |> 
+  dplyr::distinct() |> 
+  dplyr::mutate(disease_harmonized = factor(disease_harmonized, levels = c("nd", "pre", "t2d")))
+
+# summarise data
+group_by(df, disease_harmonized) %>%
+  summarise(
+    count = n(),
+    mean = mean(hba_1_c_percent, na.rm = TRUE),
+    sd = sd(hba_1_c_percent, na.rm = TRUE),
+    median = median(hba_1_c_percent, na.rm = TRUE),
+    IQR = IQR(hba_1_c_percent, na.rm = TRUE)
+  )
+hba_data <- df |> 
+  dplyr::select(-bmi) |> 
+  tidyr::drop_na()
+
+df |> 
+  tidyr::pivot_longer(tidyselect::where(is.numeric)) |> 
+  tidyr::nest(.by = "name") |> 
+  dplyr::mutate(overall = purrr::map(data, \(df){
+    df |> 
+      rstatix::kruskal_test(value ~ disease_harmonized) |> 
+      dplyr::left_join(df |> 
+                         rstatix::kruskal_effsize(value ~ disease_harmonized) |> 
+                         dplyr::select(-method)) |> 
+      dplyr::select(-".y.")
+  }),
+  pairwise = purrr::map(data, \(df){
+    df |> 
+      rstatix::wilcox_test(value ~ disease_harmonized) |> 
+      dplyr::mutate(method = "wilcox") |> 
+      dplyr::left_join(df |> 
+                         rstatix::wilcox_effsize(value ~ disease_harmonized)) |> 
+      dplyr::select(-".y.")
+  })) |> 
+  dplyr::select(-data) |> 
+  tidyr::pivot_longer(c(overall, pairwise), names_to = "test_type", values_to = "result") |> 
+  tidyr::unnest(result) |> 
+  vroom::vroom_write(here::here("islet_cartography_scrna/data/blood_and_bmi_statistical_test.csv"))
+
+
 # Preprocess --------------------------------------------------------------
 meta_donor <- meta |> 
   dplyr::select(name, ic_id_donor_overall, 
@@ -52,9 +96,12 @@ meta_donor <- meta |>
 donor_order <- meta_donor |>
   dplyr::arrange(
     ic_id_study,
+    ic_id_dataset,
     disease_harmonized,
     hba_1_c_percent,
-    ic_id_dataset,
+    bmi,
+    age_years,
+    sex_predicted
   ) |>
   dplyr::distinct(ic_id_donor_overall, .keep_all = TRUE) |>
   dplyr::pull(ic_id_donor_overall)
@@ -66,11 +113,7 @@ sex <- tile_row(meta_donor, sex_predicted, "Sex") + scale_fill_manual(values = c
 eth <- tile_row(meta_donor, ethnicity_broad_harmonized, "Ethnicity") + scale_fill_manual(values = cols5)
 age  <- tile_row(meta_donor, age_years, "Age (years)") + ggplot2::scale_fill_gradient(low = "white", high = "#5D3FD3")
 bmi  <- tile_row(meta_donor, bmi, "BMI") + ggplot2::scale_fill_gradient(low = "white", high = "#FF5F1F")
-hba <- tile_row(meta_donor, hba_1_c_percent, "HbA1c (%)") + scale_fill_gradientn(
-  colours = c("forestgreen", "white", "gold", "#ae0000"),
-  values = scales::rescale(c(4.5, 5.7, 6.5, 13.1)),
-  breaks = c(4.5, 5.7, 6.5, 13.1),
-  name = NULL)
+hba <- tile_row(meta_donor, hba_1_c_percent, "HbA1c (%)") + ggplot2::scale_fill_gradient(low = "white", high = "#FF5F1F")
 
 dataset <-  meta_donor |>
   count(ic_id_donor_overall, ic_id_dataset) |>
