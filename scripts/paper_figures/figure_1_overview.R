@@ -23,7 +23,7 @@ cols25 <- c(
 )
 
 cols5 <- c("#1F51FF", "#FF00FF", "#0FFF50", "#FF5F1F", "#FFEA00")
-
+iridescent <- khroma::color("iridescent")
 # Load --------------------------------------------------------------------
 meta <- vroom::vroom(here::here("islet_cartography_scrna/data/annotate/files/obs.csv")) 
 
@@ -386,14 +386,14 @@ ggplot2::ggplot_build(p3)$layout$panel_params[[1]]$x$get_labels())
 # cell type annotation per donor ------------------------------------------
 ## Overall percentage ----
 p1 <- meta |> 
-  dplyr::group_by(cell_type_broad) |> 
+  dplyr::group_by(cell_type) |> 
   dplyr::summarise(n = dplyr::n()) |> 
   dplyr::ungroup() |> 
   dplyr::mutate(total = sum(n),
                 pct = n / total) |> 
-  ggplot2::ggplot(ggplot2::aes(x = "x", y = pct, fill = cell_type_broad)) +
+  ggplot2::ggplot(ggplot2::aes(x = "x", y = pct, fill = cell_type)) +
   ggplot2::geom_bar(stat = "identity") +
-  ggplot2::scale_fill_manual(values = cell_type_broad_colors) +
+  ggplot2::scale_fill_manual(values = cell_type_colors) +
   my_theme() +
   ggplot2::theme(axis.title.x = ggplot2::element_blank(),
                  axis.ticks.x = ggplot2::element_blank(),
@@ -416,7 +416,7 @@ p2 <- n_cells_donor |>
                  axis.text.x = ggplot2::element_blank())
 
 p3 <- meta |> 
-  dplyr::group_by(cell_type_broad, ic_id_donor_overall) |> 
+  dplyr::group_by(cell_type, ic_id_donor_overall) |> 
   dplyr::summarise(n = dplyr::n()) |> 
   dplyr::ungroup() |> 
   dplyr::group_by(ic_id_donor_overall) |> 
@@ -425,9 +425,9 @@ p3 <- meta |>
   dplyr::ungroup() |> 
   ggplot2::ggplot(ggplot2::aes(x = forcats::fct_relevel(ic_id_donor_overall, 
                                                         n_cells_donor$ic_id_donor_overall), 
-                               y = pct, fill = cell_type_broad)) +
+                               y = pct, fill = cell_type)) +
   ggplot2::geom_bar(stat = "identity", width = 1) +
-  ggplot2::scale_fill_manual(values = cell_type_broad_colors) +
+  ggplot2::scale_fill_manual(values = cell_type_colors) +
   my_theme() +
   ggplot2::theme( 
     axis.text.x = ggplot2::element_blank(),
@@ -449,44 +449,65 @@ dev.off()
 identical(ggplot2::ggplot_build(p2)$layout$panel_params[[1]]$x$get_labels(),
           ggplot2::ggplot_build(p3)$layout$panel_params[[1]]$x$get_labels())
 
-# annotation --------------------------------------------------------------
-# -----------------------------
-# Disease composition
-# -----------------------------
-p_disease <- meta |>
-  count(disease_hba1c, manual_annotation) |>
-  ggplot(aes(x = disease_hba1c, y = n, fill = manual_annotation)) +
-  geom_col(position = "fill") +
-  scale_fill_manual(values = manual_anno_colors) +
-  labs(x = "Disease", y = "Proportion", fill = "Cell type") +
-  my_theme()
 
-# -----------------------------
-# Dataset composition
-# -----------------------------
-p_dataset <- meta |>
-  count(ic_id_dataset, manual_annotation) |>
-  ggplot(aes(x = ic_id_dataset, y = n, fill = manual_annotation)) +
-  geom_col(position = "fill") +
-  scale_fill_manual(values = manual_anno_colors) +
-  labs(x = "Dataset", y = "Proportion", fill = "Cell type") +
+# Number of cell per donor ------------------------------------------------
+# rank dataset
+dataset_order <- meta |> 
+  dplyr::group_by(ic_id_dataset, ic_id_donor_overall) |> 
+  dplyr::tally() |> 
+  dplyr::group_by(ic_id_dataset) |>
+  dplyr::summarise(max = median(n)) |> 
+  dplyr::ungroup() |> 
+  dplyr::arrange(max) |> 
+  dplyr::pull(ic_id_dataset)
+
+p1 <- meta |> 
+  dplyr::group_by(ic_id_dataset, ic_id_donor_overall) |> 
+  dplyr::tally() |> 
+  dplyr::group_by(ic_id_dataset) |> 
+  dplyr::mutate(n_donor = dplyr::n()) |> 
+  dplyr::ungroup() |> 
+  ggplot2::ggplot(ggplot2::aes(x = n, y = forcats::fct_relevel(ic_id_dataset, dataset_order))) +
+  ggplot2::geom_boxplot(ggplot2::aes(fill = n_donor), outlier.size = 0.5, 
+                        median.linewidth = 0.5) +
+  ggplot2::scale_x_log10(
+    breaks = scales::trans_breaks("log10", \(x) 10^x),
+    labels = scales::trans_format("log10", scales::math_format(10^.x))
+  ) +
+  ggplot2::scale_fill_gradientn(colors = iridescent(5)) +
+  ggplot2::annotation_logticks(sides = "bottom", outside = T, 
+                               short = unit(0.05, "cm"), 
+                               mid = unit(0.1, "cm"), 
+                               long = unit(0.15, "cm"))  +
+  ggplot2::scale_y_discrete(labels = function(x) stringr::str_to_upper(x) |> 
+                              stringr::str_replace("_", " ")) +
+  ggplot2::labs(y = "Dataset",
+                x = "Cell per donor") +
   my_theme() +
-  theme(axis.text.x = element_text(angle = 90, hjust = 0.5, vjust = 0.5))
+  ggplot2::coord_cartesian(clip = "off")
 
-# -----------------------------
-# Combine side-by-side
-# -----------------------------
-combined <- p_disease | p_dataset
+p2 <- meta |> 
+  dplyr::distinct(ic_id_dataset, ic_id_donor_overall) |> 
+  dplyr::group_by(ic_id_dataset) |> 
+  dplyr::tally(name = "n_donor") |> 
+  dplyr::ungroup() |> 
+  ggplot2::ggplot(ggplot2::aes(x = n_donor, y = forcats::fct_relevel(ic_id_dataset, dataset_order),
+                               fill = n_donor)) + 
+  ggplot2::geom_bar(stat="identity") +
+  ggplot2::scale_fill_gradientn(colors = iridescent(5)) +
+  ggplot2::scale_y_discrete(labels = function(x) stringr::str_to_upper(x) |> 
+                              stringr::str_replace("_", " ")) +
+  ggplot2::labs(y = "Dataset",
+                x = "Cell per donor") +
+  my_theme() +
+  ggplot2::coord_cartesian(clip = "off") +
+  ggplot2::theme(axis.text.y = ggplot2::element_blank(),
+                 axis.title.y = ggplot2::element_blank(),
+                 axis.ticks.y = ggplot2::element_blank())
 
-# -----------------------------
-# Save
-# -----------------------------
-ggplot2::ggsave(
-  filename = here::here("islet_cartography_scrna/data/annotate/plot/celltype_composition.pdf"),
-  plot = combined,
-  dpi = 300,
-  width = 8,
-  height = 3
-)
-
+pdf(here::here("islet_cartography_scrna/data/paper_figures/plot/cell_per_donor.pdf"),
+    width = 3,
+    height = 2)
+p1 + p2 + patchwork::plot_layout(guides = "collect", widths = c(1, 0.3))
+dev.off()
 
