@@ -17,24 +17,12 @@ create_directories(list(here::here("islet_cartography_scrna/data/cell_type_propo
 
 # Load --------------------------------------------------------------------
 meta <- vroom::vroom(here::here("islet_cartography_scrna/data/annotate/files/obs.csv"))
+duplicated_donors <- vroom::vroom(here::here("islet_cartography_scrna/data/duplicated_donors.csv"))
 
 # Preprocess - filter donors ----------------------------------------------
-# Filter so donors are only represented in one dataset
-
-# Find multi-dataset donors
-multi_donor <- meta |> 
-  dplyr::distinct(ic_id_dataset, ic_id_donor_overall) |> 
-  dplyr::add_count(ic_id_donor_overall) |> 
-  dplyr::filter(n > 1) |> 
-  dplyr::pull(ic_id_donor_overall) |> 
-  unique()
-
 # Keep single-dataset donors + 10x versions of multi-dataset donors
 meta_filtered <- meta |> 
-  dplyr::filter(
-    !(ic_id_donor_overall %in% multi_donor) | 
-      stringr::str_detect(library_prep, "10x")
-  )
+  dplyr::anti_join(y = duplicated_donors)
 
 stopifnot(
   meta_filtered |> 
@@ -201,7 +189,8 @@ fits_subtype <- subtype_counts |>
       disease_hba1c +
       age_z +
       sex_predicted +
-      bmi_z,
+      bmi_z +
+      (1| ic_id_dataset),
     family = betabinomial(),
     data = df)})
 
