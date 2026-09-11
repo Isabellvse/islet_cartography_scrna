@@ -7,16 +7,14 @@ base::source(here::here("islet_cartography_scrna/scripts/misc/marker_genes_funct
 set.seed(1000)
 vik <- khroma::color("vik")
 
-library(furrr)
-plan(multisession, workers = 64)
-
 base_path <- here::here("islet_cartography_scrna/data/marker_genes")
 dir.create(base_path, showWarnings = FALSE)
 dir.create(paste0(base_path, "/", "cell_type_broad"), showWarnings = FALSE)
 dir.create(paste0(base_path, "/", "cell_type_broad/files"), showWarnings = FALSE)
 dir.create(paste0(base_path, "/", "cell_type_broad/plots"), showWarnings = FALSE)
 
-
+library(furrr)
+plan(multisession, workers = 120)
 # Load --------------------------------------------------------------------
 df_paths <- base::list.files(path = here::here("islet_cartography_scrna/data/annotate/deseq_onevsother_broad_unique"),
                              pattern = ".csv", 
@@ -47,11 +45,11 @@ markers <- purrr::map(meta_paths, \(df) {
   purrr::imap(\(df, name) df |> 
                 dplyr::mutate(fdr = stats::p.adjust(pval, method = "BH"))  %>% 
                 dplyr::filter(fdr <= 0.01, .data[[name]] >= 50) |> 
-                dplyr::select(gene_symbol, TE, seTE, fdr, lower, upper, dplyr::all_of(colnames(perc))) |> 
-                dplyr::arrange(desc(TE), desc(.data[[name]])) |>
+                dplyr::select(gene_symbol, k.study, TE, seTE, fdr, lower, upper, dplyr::all_of(colnames(perc))) |> 
+                dplyr::arrange(desc(TE), desc(.data[[name]]), desc(k.study)) |>
                 head(4)) |> 
   purrr::list_rbind(names_to = "cell_type_broad") |> 
-  dplyr::select(gene_symbol, marker = cell_type_broad)
+  dplyr::select(gene_symbol, marker = cell_type_broad, k.study)
 
 # Percentage long format
 perc_long <- perc |> 
@@ -101,4 +99,52 @@ logfc |>
   ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 90, vjust = 0.5, hjust = 1),
                  panel.spacing = unit(0.1, "lines"),
                  axis.title = ggplot2::element_blank())
+dev.off()
+
+# dotplot and number of datasets
+pdf(
+  file = paste0(base_path, "/cell_type_broad/plots/dotplot_top_4_marker_genes_n_study.pdf"),
+  height = 2.5,
+  width = 4.7)
+p1 <- logfc |>  
+  ggplot2::ggplot(ggplot2::aes(x = forcats::fct_reorder2(gene_symbol, TE, perc), y = cell_type_broad)) +
+  ggplot2::geom_point(ggplot2::aes(size = perc, color = TE), shape = 16) +
+  ggplot2::scale_size("% Expressed", range = c(0, 2)) +
+  ggplot2::scale_color_gradientn(
+    colors = vik(256),
+    limits = c(-10, 10),
+    values = scales::rescale(c(-10, 0, 10)),
+    oob = scales::squish, name = "Pooled log2FC"
+  ) +
+  ggplot2::facet_wrap(~marker, nrow = 1,  scales = "free_x", labeller = labeller(
+    marker = function(x)
+      ggplot2::label_wrap_gen(width = 10)(
+        stringr::str_to_sentence(gsub("_", " ", x))
+      ))) +
+  ggplot2::scale_y_discrete(
+    labels = function(y)(
+      stringr::str_to_sentence(gsub("_", " ", y))
+    )
+  ) +
+  my_theme() +
+  ggplot2::theme(axis.text.x = ggplot2::element_blank(),
+                 axis.ticks.x = ggplot2::element_blank(),
+                 panel.spacing = unit(0.1, "lines"),
+                 axis.title = ggplot2::element_blank())
+
+
+p2 <- logfc |>  
+  dplyr::filter(cell_type_broad == marker)  |>  
+  ggplot2::ggplot(ggplot2::aes(x = forcats::fct_reorder2(gene_symbol, TE, perc), y = k.study)) +
+  ggplot2::geom_bar(stat = "identity") +
+  ggplot2::facet_wrap(~marker, nrow = 1,  scales = "free_x") +
+  ggplot2::scale_y_reverse(breaks = scales::breaks_pretty(n = 3))+
+  my_theme() +
+  ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 90, vjust = 0.5, hjust = 1),
+                 panel.spacing = unit(0.1, "lines"),
+                 axis.title = ggplot2::element_blank(),
+                 strip.text.x = element_blank(),
+                 strip.background = element_blank())
+
+p1 / p2 + patchwork::plot_layout(heights = c(1, 0.3),guides = "collect")
 dev.off()
