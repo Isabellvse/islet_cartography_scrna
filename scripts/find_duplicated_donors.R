@@ -10,6 +10,16 @@ library(emmeans)
 
 # Load --------------------------------------------------------------------
 meta <- vroom::vroom(here::here("islet_cartography_scrna/data/annotate/files/obs.csv"))
+test <- meta |> dplyr::group_by(ic_id_donor_overall) |> 
+  dplyr::summarise(n_dataset = n_distinct(ic_id_dataset),
+                   n_sample = n_distinct(ic_id_platform_adjusted_sample)) |> 
+  dplyr::filter(n_dataset > 1 | n_sample > 1) |> 
+  dplyr::pull(ic_id_donor_overall)
+
+meta |> 
+  dplyr::distinct(ic_id_dataset, ic_id_donor_overall, ic_id_platform_adjusted_sample) |> 
+  dplyr::filter(ic_id_donor_overall %in% test) |> 
+  print.data.frame()
 
 # Find duplicated donors --------------------------------------------------
 meta |> 
